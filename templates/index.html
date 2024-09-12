@@ -6,10 +6,10 @@
         <link rel="stylesheet" href="static/style.css">
     </header>
     <body>
-        <div class="center">
+        <div class="page">
             <h1 class="heading">Baabnq Web IDE</h1>
             
-            <div style="display: flex; flex-direction: row;">
+            <div class="edit-container">
 <pre class="embed baabnq-source" id="editor" contenteditable="true">
 use 'libs/string.baabnq';
 static 'Hello, World!' _sHello;
@@ -20,7 +20,7 @@ sub String::Print;
             </div>
 
             <br/>
-            <div>
+            <div id="footer">
                 <input class="biggreenbutton" id="runButton" type="button" value="Run"/>
                 <text>Or press Ctrl + Enter to run</text>
                 <br>

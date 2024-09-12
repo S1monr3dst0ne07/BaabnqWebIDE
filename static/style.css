@@ -1,3 +1,9 @@
+
+html, body {
+    height: 100%;
+}
+
+
 body { 
     background-color: black; 
     font-family: Consolas, monospace;
@@ -5,10 +11,12 @@ body {
 }
             
                     
-.center {
-    display: table; 
+.page {
+    display: flex;
+    flex-direction: column;
     margin: auto;
     width: 80%;
+    height: 80%;
 }
 
 .heading {
@@ -37,11 +45,17 @@ body {
 
 .embed {
     width: 45%;
-    height: 300px;
     border: 1px solid #333;
     border-radius: 10px;
     margin: 5px;
     padding: 5px;
     overflow: auto;
     font-size: 1.2em;
+    flex-grow: 100;
+}
+
+.edit-container {
+    display: flex; 
+    flex-direction: row;
+    flex-grow: 100;
 }

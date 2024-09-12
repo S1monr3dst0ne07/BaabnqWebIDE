@@ -1,6 +1,5 @@
 
 
-
 var lexBaabnq = (raw) => {
 
     //state
@@ -132,7 +131,7 @@ var applyHighlightTokensToTag = (tag, tokenStream) => {
 
 
 
-var updateHighlighTag = (tag) => {
+var updateHighlightTag = (tag) => {
     
     let tokenStream = lexBaabnq(tag.innerText);    
     applyHighlightTokensToTag(tag, tokenStream);
@@ -140,20 +139,20 @@ var updateHighlighTag = (tag) => {
 };
 
 
-var highlighInit = () => {
+var highlightInit = () => {
     var tags = document.getElementsByClassName("baabnq-source");    
 
-    let handleInputEvent = event => updateHighlighTag(event.target);
+    let handleInputEvent = event => updateHighlightTag(event.target);
 
     // highlight all
-    for (let tag of tags) updateHighlighTag(tag);
+    for (let tag of tags) updateHighlightTag(tag);
         
     //register
     for (let tag of tags) tag.addEventListener("focusout", handleInputEvent);
 }
 
 
-window.addEventListener("load", highlighInit);
+window.addEventListener("load", highlightInit);
 
 
 

@@ -20,7 +20,7 @@ function run() {
         'source': editor.innerText
     }, "/run");
     
-    updateHighlighTag(editor);
+    updateHighlightTag(editor);
 }
 
 

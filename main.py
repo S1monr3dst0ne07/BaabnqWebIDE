@@ -11,25 +11,7 @@ def error(x):
 app = flask.Flask(__name__)
 
 
-
-@app.route("/")
-def home():
-    return flask.render_template("index.html")    
-
-@app.route("/favicon.ico")
-def favicon():
-    return flask.send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico')
-
-@app.route("/run", methods = ['POST', 'GET'])
-def run():
-    if flask.request.method == 'GET':
-        return flask.redirect('/')
-    
-    xRequest = flask.request.get_json()
-    if 'source' not in xRequest.keys():
-        return "Error: Malformed Request"
-
-    xEditorContent = xRequest['source']
+def run(xEditorContent=''):
     print(xEditorContent)
 
     with open("source.baabnq", "w") as xFile:
@@ -68,6 +50,42 @@ def run():
         xVMOut.returncode else 
         xVMOut.stdout
     ).decode("ascii")
+    
+
+
+
+
+@app.route("/")
+def serveHome():
+    return flask.render_template("index.html")    
+
+@app.route("/favicon.ico")
+def servrFavicon():
+    return flask.send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico')
+
+@app.route("/run", methods = ['POST', 'GET', 'OPTIONS'])
+def serveRun():
+    if flask.request.method == 'GET':
+        return flask.redirect('/')
+    
+    if flask.request.method == 'OPTIONS':
+        xResponse = flask.make_response()
+        xResponse.headers.add("Access-Control-Allow-Origin", "*")
+        xResponse.headers.add('Access-Control-Allow-Headers', "*")
+        xResponse.headers.add('Access-Control-Allow-Methods', "*")    
+        return xResponse
+
+
+    xRequest = flask.request.get_json()
+    if 'source' not in xRequest.keys():
+        return "Error: Malformed Request"
+
+    xEditorContent = xRequest['source']
+    xOutput = run(xEditorContent)
+    xResponse = flask.Response(xOutput)
+    xResponse.headers.add("Access-Control-Allow-Origin", "*")
+    
+    return xResponse
     
     
 if __name__ == '__main__':

@@ -10,9 +10,10 @@ def error(x):
 
 app = flask.Flask(__name__)
 
+logging = False
 
 def run(xEditorContent=''):
-    print(xEditorContent)
+    if logging: print(xEditorContent)
 
     with open("source.baabnq", "w") as xFile:
         xFile.write(xEditorContent)
@@ -27,7 +28,7 @@ def run(xEditorContent=''):
         return 'Error: Compiler timed out, something took too long.'
 
     
-    print(xCompilerOut)
+    if logging: print(xCompilerOut)
     
     xErrorLine = xCompilerOut.split("\n")[-2]
     if ('error' in xErrorLine.lower()):
@@ -43,7 +44,7 @@ def run(xEditorContent=''):
         return 'Error: Virtual Machine timed out, something took too long.'
 
 
-    print(xVMOut)
+    if logging: print(xVMOut)
 
     return (
         xVMOut.stderr if 

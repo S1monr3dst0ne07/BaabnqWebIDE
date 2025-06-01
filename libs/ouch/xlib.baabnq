@@ -1,0 +1,454 @@
+use 'libs/stack.baabnq';
+use 'libs/no.baabnq';
+use 'libs/ouch/syscall.baabnq';
+use 'libs/ouch/stream.baabnq';
+
+
+"base screen port
+put _XBASEPORT = 6000;
+
+"interface, default ip -> localhost
+put _XLib::HostLow  = (0 << 8)   + 1; "???.???.000.001
+put _XLib::HostHigh = (127 << 8) + 0; "127.000.???.???
+put _XLib::ScreenNum = 0;
+
+"long (32) = 2 word (16) = 2 shorts (16)
+static 2 _XResourceAcc;
+static 2 _XContextID;
+
+static 2 _XRootWinID;
+
+put _XpSock = 0;
+
+"public consts
+put _XLib::ExposureMask = 1;
+put _XLib::KeyPressMask = 1 << 15;
+put _XLib::DefaultMask = _XLib::ExposureMask | _XLib::KeyPressMask;
+
+put _XLib::EventKeyPress = 2;
+put _XLib::EventExpose   = 12;
+
+
+"!!!! NON OF THESE TAKE ARGS !!!!
+
+jump XLib::Skip;
+
+"this only works, because we assume that the lower few bytes are empty
+"this is however ususally the case, because of resource_mask looking something like 0x1ffff
+lab XLib::XAllocID;
+    "put __     <- _XResourceAcc;
+    "put __ + 1 -> _XResourceAcc;
+    
+    asm '
+    lPA (_XResourceAcc);
+    set 1;
+    add;
+    sAP (_XResourceAcc);
+    ';
+
+
+    return;
+
+"recv cons parser util
+lab XLib::XCons;
+    "check recv, loop if data not yet available
+    push _XpSock;
+    sub Ouch::Syscall::ReadStream;
+    pull _suc;
+    pull _data;
+    jump XLib::XCons ~ _suc == 2;
+    sub  No::Panic   ~ _suc == 0;
+    
+    push _data;
+    sub Stack::Swap;
+    return;
+
+"recv cons parser util
+lab XLib::XConsShort;
+    sub XLib::XCons;
+    pull _low;
+    sub XLib::XCons;
+    pull _high;
+
+    push (_high << 8) + _low;
+    sub Stack::Swap;
+    return;    
+
+
+"opens window, based on globals
+lab XLib::XOpenDisplay;
+    
+    push _XBASEPORT + _XLib::ScreenNum;
+    push _XLib::HostLow;
+    push _XLib::HostHigh;
+    sub Ouch::Syscall::Connect;
+    pull _XpSock;
+    sub No::Return ~ _XpSock == 0;
+    
+
+    "client prefix string
+    "new 'B\x0b\x00\x00\x00' _pStr;
+    new 'l\x0b\x00\x00\x00\x00' _pStr;
+    put _len <- _pStr - 1;
+    put _len = _len - 2;
+
+    push _XpSock;
+    push _pStr;
+    push _len;
+    sub Ouch::Syscall::SendStream;
+    pull _suc;
+    sub No::Return ~ _suc == 0;
+
+    free _pStr;
+
+
+
+
+    "read response
+    sub XLib::XCons; pull _suc;
+    sub XLib::XCons; pull __;
+
+    sub No::Panic ~ _suc != 1;
+
+    "version numbers
+    sub XLib::XConsShort; pull __; sub No::Return ~ __ != 11; "major = 11
+    sub XLib::XConsShort; pull __; sub No::Return ~ __ != 0;  "minor = 0
+    
+    sub XLib::XConsShort; pull _len;
+    put _len = _len << 2;
+    print _len;
+    
+    "setup
+    new _len _pBuf;
+    put _p = _pBuf;
+    
+    put _i = 0;
+    lab XLib::XOpenDisplay::SetupLoop;
+        sub XLib::XCons;
+        pull _data;
+        put _data -> _pBuf + _i;
+        put _i = _i + 1;
+    jump XLib::XOpenDisplay::SetupLoop ~ _i < _len;
+
+    "parse (hell)
+    put _p = _p + 4; "skip release number
+
+    "resource base id   
+    put _low  <- _p + 0;
+    put _high <- _p + 1;
+    put _low | (_high << 8) -> _XResourceAcc + 0;    
+    put _low  <- _p + 2;
+    put _high <- _p + 3;
+    put _low | (_high << 8) -> _XResourceAcc + 1;
+
+
+    put _p = _p + 4 + 4 + 4; "resource base id + mask id + motion size buffer
+    put _venlen <- _p;
+    put _p = _p + 2 + 2; "vendor len + max req len
+    
+    put __ <- _p;
+    put _numFormat <- _p + 1;
+    sub No::Panic ~ __ != 1; "only one screen supported
+    put _p = _p 
++ 1 "number screem
++ 1 "number format
++ 1 "image byte order
++ 1 "bitmap byte order
++ 1 "bitmap scanline unit
++ 1 "bitmap scanline pad
++ 1 "min keycode
++ 1 "max keycode
++ 4; "unused
+
+    put _i = 0;
+    lab XLib::XOpenDisplay::VenLoop;
+        put _data <- _p + _i;
+        putchr _data;
+        put _i = _i + 1;
+    jump XLib::XOpenDisplay::VenLoop ~ _i < _venlen;
+    putchr 10;
+    put _p = _p + _venlen + 1;
+    
+
+    "skip format, sizeof(format) = 8 bytes
+    put _p = _p + (_numFormat << 3) - 1;
+
+    "root window id
+    put _low  <- _p + 0;
+    put _high <- _p + 1;
+    put _low | (_high << 8) -> _XRootWinID + 0;    
+    put _low  <- _p + 2;
+    put _high <- _p + 3;
+    put _low | (_high << 8) -> _XRootWinID + 1;
+
+
+    "done parsing connection startup
+    free _pBuf;
+
+    "graphics context
+    sub XLib::XAllocID;
+    push _XResourceAcc;
+    push _XContextID;
+    push 2;
+    sub String::MemCpy;
+
+    new '\x37\x04\xff\xff\xff\xff\x00\x00' _pStr;
+    put _len <- _pStr - 1;
+    put _len = _len - 2;    
+
+    push _XContextID;
+    push _pStr + 2;
+    push 2;
+    sub String::MemCpy;
+
+    push _XRootWinID;
+    push _pStr + 4;
+    push 2;
+    sub String::MemCpy;
+
+    push _XpSock;
+    push _pStr;
+    push _len;
+    sub Ouch::Syscall::SendStream;
+    pull _suc;
+
+    free _pStr;
+    return;
+
+
+"(X::Int, Y::Int, Width::Int, Height::Int) => (WinID::Long*)
+lab XLib::XCreateWindow;
+    sub Stack::Swap;
+    pull _height;
+    sub Stack::Swap;
+    pull _width;
+    sub Stack::Swap;
+    pull _y;
+    sub Stack::Swap;
+    pull _x;
+    
+    "new window id
+    new 2 _pWin;
+    sub XLib::XAllocID;
+    push _XResourceAcc;
+    push _pWin;
+    push 2;
+    sub String::MemCpy;
+
+    
+    "request
+    new '\x01\x09\xff\xff\xff\xff\xff\xff\xff\xff\x01\x00\x00\x00\x02\x00\x00\x00' _pStr;
+    put _len <- _pStr - 1;
+    put _len = _len - 2;
+    
+    push _pWin;
+    push _pStr + 2;
+    push 2;
+    sub String::MemCpy;
+    push _XRootWinID;
+    push _pStr + 4;
+    push 2;
+    sub String::MemCpy;
+
+    put _x -> _pStr + 6;
+    put _y -> _pStr + 7;
+    put _width -> _pStr + 8;
+    put _height -> _pStr + 9;
+    
+
+    push _XpSock;
+    push _pStr;
+    push _len;
+    sub Ouch::Syscall::SendStream;
+    pull _suc;
+
+
+    free _pStr;
+
+    push _pWin;
+    sub Stack::Swap;
+    return;
+
+
+"(WinID::Long*, Mask::Long*)
+lab XLib::XSelectInput;
+    sub Stack::Swap;
+    pull _mask;
+    sub Stack::Swap;
+    pull _pWin;
+    
+    new '\x02\x04\xff\xff\x00\x00\xff\xff' _pStr;
+    put _len <- _pStr - 1;
+    put _len = _len - 2;
+
+    put 1 << 11 -> _pStr + 4; "highbyte of CWEventMask
+
+    push _pWin;
+    push _pStr + 2;
+    push 2;
+    sub String::MemCpy;
+    
+    push _mask;
+    push _pStr + 6;
+    push 2;
+    sub String::MemCpy;
+
+    push _XpSock;
+    push _pStr;
+    push _len;
+    sub Ouch::Syscall::SendStream;
+    pull _suc;
+
+    free _pStr;
+    return;
+
+
+
+"(WinID::Long*)
+lab XLib::XMapWindow;
+    sub Stack::Swap;
+    pull _pWin;
+    
+    new '\x08\x02\xff\xff' _pStr;
+    put _len <- _pStr - 1;
+    put _len = _len - 2;
+
+    push _pWin;
+    push _pStr + 2;
+    push 2;
+    sub String::MemCpy;
+
+    push _XpSock;
+    push _pStr;
+    push _len;
+    sub Ouch::Syscall::SendStream;
+    pull _suc;
+
+    free _pStr;
+    return;    
+
+
+"=> (e::XEvent*)
+lab XLib::XNextEvent;
+    push _XpSock;
+    push 32;  "read 32 bytes
+    push 100; "poll nap interval 100 Msecs
+    sub Ouch::Stream::SocketRead;
+    pull _pStr;
+
+    put _type <- _pStr;
+    jump XLib::XNextEvent::Success ~ _type != 0;
+        free _pStr;
+        jump XLib::XNextEvent;
+    lab XLib::XNextEvent::Success;
+
+    push _pStr;
+    sub Stack::Swap;
+    return;
+
+
+"(e::Event*) => (Width::Int)
+lab XLib::ExposeWidth;
+    sub Stack::Swap;
+    pull _pEvent;
+
+    put _low  <- _pEvent + 12;
+    put _high <- _pEvent + 13;
+    
+    push _low + (_high << 8);
+    sub Stack::Swap;
+    return;
+
+"(e::Event*) => (Height::Int)
+lab XLib::ExposeHeight;
+    sub Stack::Swap;
+    pull _pEvent;
+
+    put _low  <- _pEvent + 14;
+    put _high <- _pEvent + 15;
+    
+    push _low + (_high << 8);
+    sub Stack::Swap;
+    return;
+
+
+"(WinID::Long*, X::Int, Y::Int, Width::Int, Height::Int)
+lab XLib::XPolyRect;
+    sub Stack::Swap;
+    pull _height;
+    sub Stack::Swap;
+    pull _width;
+    sub Stack::Swap;
+    pull _y;
+    sub Stack::Swap;
+    pull _x;
+    sub Stack::Swap;
+    pull _pWin;
+
+    new '\x43\x05\xff\xff\xff\xff\xff\xff\xff\xff' _pStr;
+    put _len <- _pStr - 1;
+    put _len = _len - 2;
+
+    push _pWin;
+    push _pStr + 2;
+    push 2;
+    sub String::MemCpy;
+
+    push _XContextID;
+    push _pStr + 4;
+    push 2;
+    sub String::MemCpy;
+
+    put _x      -> _pStr + 6;
+    put _y      -> _pStr + 7;
+    put _width  -> _pStr + 8;
+    put _height -> _pStr + 9;
+    
+    push _XpSock;
+    push _pStr;
+    push _len;
+    sub Ouch::Syscall::SendStream;
+    pull _suc;
+
+    free _pStr;
+    return;
+
+
+"(R::Int, G::Int, B::Int)
+lab XLib::XSetFore;
+    sub Stack::Swap;
+    pull _b;
+    sub Stack::Swap;
+    pull _g;
+    sub Stack::Swap;
+    pull _r;
+
+    new '\x38\x04\xff\xff\x04\x00\xff\xff' _pStr;
+    put _len <- _pStr - 1;
+    put _len = _len - 2;
+    
+    push _XContextID;
+    push _pStr + 2;
+    push 2;
+    sub String::MemCpy;
+
+    put _b + (_g << 8) -> _pStr + 6;
+    put _r             -> _pStr + 7;
+
+    push _XpSock;
+    push _pStr;
+    push _len;
+    sub Ouch::Syscall::SendStream;
+    pull _suc;
+
+    free _pStr;
+    return;
+
+
+
+lab XLib::Skip;
+
+
+
+
+

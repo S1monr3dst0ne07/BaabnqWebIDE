@@ -1,0 +1,548 @@
+
+use 'libs/tests/common.baabnq';
+use 'libs/chunk.baabnq';
+use 'libs/rand.baabnq';
+use 'libs/no.baabnq';
+
+lab TestChunk::Range;
+    put _size = 1000;
+    put _offset = 10000;
+    new _size _p;
+
+    push _p;
+    push _offset;
+    push _offset + _size;
+    sub Chunk::Range;
+    
+    "middle  of the range should be half   of the size, plus the offset
+    "quarter of the range should be fourth of the size, plus the offset
+    "et cetera ad infinitum (sed non in hoc casu, quia non est mathematica)
+    put _i = 1;
+    lab Local::TestChunk::Range;
+        put _samplePoint = _size >> _i;
+        put __ <- _p + _samplePoint;
+        jump fail ~ __ != _offset + _samplePoint;
+        
+        put _i = _i + 1;
+    jump Local::TestChunk::Range ~ _samplePoint > 0;
+    free _p;
+
+    jump succ;
+
+
+lab TestChunk::Len;
+    put _i = 0;
+    
+    lab Local::TestChunk::Len::Loop;
+        new _i _p;
+        
+        push _p;
+        sub Chunk::Len;
+        pull __;
+        jump fail ~ __ != _i;
+        
+        free _p;
+        
+        put _i = _i + 10;
+    jump Local::TestChunk::Len::Loop ~ _i < 10000;
+    
+    jump succ;
+    
+    
+lab TestChunk::Sum;
+    put _size = 200;
+    new _size _p;
+    
+    put _total = 0;
+    
+    put _i = 0;
+    put _j = _size - 1;
+    lab Local::TestChunk::Sum::Loop;
+        sub Rand::Xorshift;
+        pull _k;
+        put _k -> _p + _j;
+        put _total = _total + _k;
+
+        push _p;
+        sub Chunk::Sum;
+        pull __;
+                
+        jump fail ~ __ != _total;
+    
+        put _i = _i + 1;
+        put _j = _j - 1;
+    jump Local::TestChunk::Sum::Loop ~ _i < _size; 
+    
+    free _p;
+    
+    jump succ;
+
+"only case based because the average routine is based on already tested subroutines
+lab TestChunk::Avg;
+    "sanity check
+    new 2 _p;
+    put 10 -> _p + 0;
+    put 20 -> _p + 1;    
+    push _p;
+    sub Chunk::Avg;
+    pull __;
+    free _p;
+    jump fail ~ __ != 15; 
+
+    new 3 _p;
+    put 10 -> _p + 0;
+    put 20 -> _p + 1;
+    put 30 -> _p + 2;
+    push _p;
+    sub Chunk::Avg;
+    pull __;
+    free _p;
+    jump fail ~ __ != 20;
+
+    new 10 _p;
+    push _p;
+    push 0;
+    push 10;
+    sub Chunk::Range;
+    push _p;
+    sub Chunk::Avg;
+    pull __;
+    free _p;
+    jump fail ~ __ != 4; "4.5
+
+
+    new 'hello world' _p;
+    push _p;
+    sub Chunk::Avg;
+    pull __;
+    free _p;
+    jump fail ~ __ != 93; 
+    "turns out the average of hello world is 93
+    "who would have thought
+    
+    jump succ;
+        
+        
+        
+lab TestChunk::Index;
+    put _size = 100;
+    "allocate a chunk double the size of _size,
+    "then fill the upper half using range, while the lower range stays empty
+    "this will cause an offset of _size which can be tested for
+    new (_size << 1) _p;
+    push _p + _size;
+    push 0;
+    push _size;
+    sub Chunk::Range;
+    
+    put _i = 1;
+    lab Local::TestChunk::Index::Loop;
+        push _p;
+        push _i;
+        sub Chunk::Index;
+        pull __;
+        jump fail ~ __ != _i + _size;
+        put _i = _i + 1;
+    jump Local::TestChunk::Index::Loop ~ _i < _size; 
+       
+    free _p;
+    jump succ;
+
+
+lab TestChunk::Count;
+    new 'hello world' _p;    
+    push _p;
+    push 108; "l ^= 108
+    sub Chunk::Count;
+    pull __;
+    jump fail ~ __ != 3;
+    free _p;
+
+    new 'the quick brown fox jumps over the lazy dog' _p;
+    push _p;
+    push 32; "space
+    sub Chunk::Count;
+    pull __;
+    jump fail ~ __ != 8;
+    free _p;
+            
+    jump succ;
+    
+
+
+
+lab TestChunk::Sort;    
+    put _size = 64; "has to be power of two
+    
+    put _l = 0;
+    new _size _p;
+    push _p;
+    push 0;
+    push _size;
+    sub Chunk::Range;
+    "more edge cases
+    put 10     -> _p + 20;
+    put 10000  -> _p + 30;
+    put 69     -> _p + 31;
+       
+    lab Local::TestChunk::Sort::Loop;
+                
+        put _i = 0;
+        lab Local::TestChunk::Sort::Scramble;
+            push _i;
+            sub Local::TestChunk::Sort::OneScramble;
+            pull _i;
+            put _i = _i + 1;
+        jump Local::TestChunk::Sort::Scramble ~ _i < _size;
+
+
+        push _p;
+        sub Chunk::Sort;
+
+        
+        put _i = 0;
+        lab Local::TestChunk::Sort::Check;
+            put _a <- _p + _i;
+            put _b <- _p + _i + 1;
+            jump fail ~ _a > _b;
+        
+            put _i = _i + 1;
+        jump Local::TestChunk::Sort::Check ~ _i < _size - 1;
+        
+        put _l = _l + 1;
+    jump Local::TestChunk::Sort::Loop ~ _l < 50;
+
+    free _p;    
+    jump succ;
+    
+    lab Local::TestChunk::Sort::OneScramble;
+        sub Rand::Xorshift;
+        sub Rand::Xorshift;
+        pull _i;
+        pull _j;
+        put _i = _i & (_size - 1);
+        put _j = _j & (_size - 1);
+        put _a <- _p + _i;
+        put _b <- _p + _j;
+        put _b -> _p + _i;
+        put _a -> _p + _j;
+    return;
+
+
+lab TestChunk::Reverse;
+    put _size = 100;
+    new _size _p;
+    
+
+    push _p;
+    push 0;
+    push _size;
+    sub Chunk::Range;    
+    
+
+    push _p;
+    sub Chunk::Reverse;
+    
+    put _i = 0;
+    lab Local::TestChunk::Reverse::CheckReverse;
+        put _a <- _p + _i;
+        put _b <- _p + _i + 1;
+        jump fail ~ _a < _b;
+        jump fail ~ _a == _b;
+        put _i = _i + 1;
+    jump Local::TestChunk::Reverse::CheckReverse ~ _i < _size - 1;
+    
+    push _p;
+    sub Chunk::Reverse;
+        
+    put _i = 0;
+    lab Local::TestChunk::Reverse::CheckDoubleReverse;
+        put _a <- _p + _i;
+        put _b <- _p + _i + 1;
+        jump fail ~ _a > _b;
+        jump fail ~ _a == _b;
+        put _i = _i + 1;
+    jump Local::TestChunk::Reverse::CheckDoubleReverse ~ _i < _size - 1;
+    
+    free _p;    
+    jump succ;
+    
+    
+    
+lab TestChunk::Copy;
+    put _size = 1000;
+    new _size _p;
+    
+    put _i = 0;
+    lab Local::TestChunk::Copy::RandomLoop;
+        sub Rand::Xorshift;
+        pull __;
+        put __ -> _p + _i;
+        put _i = _i + 1;
+    jump Local::TestChunk::Copy::RandomLoop ~ _i < _size;
+        
+    push _p;
+    sub Chunk::Copy;
+    pull _q;
+    
+    put __ <- _q - 1;
+    jump fail ~ __ != _size + 1;
+        
+    put _i = 0;
+    lab Local::TestChunk::Copy::CheckLoop;
+        put _a <- _p + _i;
+        put _b <- _q + _i;
+        jump fail ~ _a != _b;
+        put _i = _i + 1;
+    jump Local::TestChunk::Copy::CheckLoop ~ _i < _size;
+    
+    free _p;
+    free _q;        
+    jump succ;
+    
+    
+lab TestChunk::Slice;
+    new 'concatenation' _p;
+    
+    put _size = 3;
+    
+    push _p;
+    push 3;
+    push 3 + _size;
+    sub Chunk::Slice;
+    pull __;
+
+    free _p;
+    new 'cat' _p; "YAAAAY, CAT!!!!
+
+    put _i = 0;
+    lab Local::TestChunk::Slice::Loop;
+        put _a <- __ + _i;
+        put _b <- _p + _i;
+        put _i = _i + 1;
+        jump fail ~ _a != _b;
+    jump Local::TestChunk::Slice::Loop ~ _i < _size;
+    
+    free _p;
+    jump succ;
+    
+
+"one unit test for both, they're basically the same
+lab TestChunk::MinMax;
+    new 'zzz hello world, the quick brown fox jumps over the lazy dog aaa' _p;
+    "remove terminator
+    put __ <- _p - 1;
+    put 50 -> _p + __ - 2;
+            
+    push _p;
+    sub Chunk::Min;
+    pull __;
+    jump fail ~ __ != 32;
+    
+    push _p;
+    sub Chunk::Max;
+    pull __;
+    jump fail ~ __ != 122;
+
+    free _p;
+    jump succ;
+
+
+lab TestChunk::Concat;
+    new 10 _p1;
+    new 5  _p2;
+    
+    push _p1;
+    push 0;
+    push 10;
+    sub Chunk::Range;
+    push _p2;
+    push 10;
+    push 15;
+    sub Chunk::Range;
+    
+    push _p1;
+    push _p2;
+    sub Chunk::Concat;
+    pull __;
+            
+    free _p1;
+    free _p2;
+    
+    new 15 _p;
+    push _p;
+    push 0;
+    push 15;
+    sub Chunk::Range;
+    
+    put _i = 0;
+    lab Local::TestChunk::Concat::Loop;
+        put _a <- __ + _i;
+        put _b <- _p + _i;
+        put _i = _i + 1;
+        jump fail ~ _a != _b;
+    jump Local::TestChunk::Concat::Loop ~ _i < 15;
+    
+    jump succ;        
+
+
+
+lab TestChunk::Contains;
+    put _size = 100;
+    new _size _p;
+    
+    push _p;
+    push 0;
+    push _size;
+    sub Chunk::Range;
+    
+    push _p;
+    push _size << 2;
+    sub Chunk::Contains;
+    pull __;
+    jump fail ~ __ != 0;
+    
+    push _p;
+    push _size >> 2;
+    sub Chunk::Contains;
+    pull __;
+    jump fail ~ __ == 0;
+    
+    jump succ;
+
+
+
+
+lab TestChunk::Compare;
+    "length
+    put _size = 100;
+    new _size      _p0;
+    new _size >> 1 _p1;
+    
+    
+    push _p0;
+    push _p1;
+    sub Chunk::Compare;
+    pull __;
+    jump fail ~ __ != 0;
+    
+    free _p0;
+    free _p1;
+    
+
+    "content
+    put _size = 100;
+    new _size _p0;
+    new _size _p1;
+
+    push _p0;
+    push _p1;
+    sub Chunk::Compare;
+    pull __;
+    jump fail ~ __ == 0;
+    
+    push _p0;
+    push 0;
+    push _size;
+    sub Chunk::Range;
+        
+    push _p0;
+    push _p1;
+    sub Chunk::Compare;
+    pull __;
+    jump fail ~ __ != 0;
+    
+    push _p1;
+    push 0;
+    push _size;
+    sub Chunk::Range;
+    
+    push _p0;
+    push _p1;
+    sub Chunk::Compare;
+    pull __;
+    jump fail ~ __ == 0;
+    
+    free _p0;
+    free _p1;
+    
+    jump succ;
+    
+    
+    
+lab TestChunk::Hash;
+    "hash('hello world') ^= 51393
+    new 'hello world' _p;
+    "remove terminator
+    put __     <- _p - 1;
+    put __ - 1 -> _p - 1;
+
+    push _p;
+    sub Chunk::Hash;
+    pull __;
+    jump fail ~ __ != 51393;
+    
+    free _p;
+
+    "hash([0..9]) ^= 13938
+    new 10 _p;
+    push _p;
+    push 0;
+    push 10;
+    sub Chunk::Range;
+
+    push _p;
+    sub Chunk::Hash;
+    pull __;
+    jump fail ~ __ != 13938;
+    
+    free _p;
+
+    jump succ;
+    
+    
+"this is like TestChunk::MinMax,
+"fill and clear also basically do the same,
+"clear is just a special case
+lab TestChunk::FillClear;
+    "+1 for bounds check
+    new 8 + 1 _p;
+    put 100 -> _p + 8;
+    "dec len
+    put __     <- _p - 1;
+    put __ - 1 -> _p - 1;
+        
+    "fill
+    push _p;
+    push 7;
+    sub Chunk::Fill;
+            
+    push _p;
+    sub Chunk::Sum;
+    pull __;
+    "7 * 8 = 56
+    jump fail ~ __ != 56;
+    
+    "bounds check
+    put __ <- _p + 8;
+    jump fail ~ __ != 100;
+    
+    
+    "clear
+    "inc len
+    put __     <- _p - 1;
+    put __ + 1 -> _p - 1;
+        
+    push _p;
+    sub Chunk::Clear;
+    
+    push _p;
+    sub Chunk::Sum;
+    pull __;
+    "0 * 9 = 0
+    jump fail ~ __ != 0;
+    
+    free _p;
+    
+    jump succ;
+    

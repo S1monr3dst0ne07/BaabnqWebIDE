@@ -10,22 +10,28 @@
 use 'libs/math.baabnq';
 use 'libs/stack.baabnq';
 
-put _Floats::Zero    = 16384;
-put _Floats::PosNaN  = 16256;
-
-put _UPPER16         = 65280;
-put _MANTISSA_SIZE   = 8;
-put _EXPONENT_SIZE   = 8;
-put _SIGN_OFFSET     = 15;
-put _MANTISSA_MASK   = 127;
-put _EXPONENT_MASK   = 255;
-put _SIGN_MASK       = 32768;
-put _MIN_SIGNED_CHAR = 128;
-
-static 1 _tempPtr;
-put 0 -> _tempPtr;
+sub Floats::ModuleInit;
 
 jump Floats::Skip;
+
+
+
+lab Floats::ModuleInit;
+    put _Floats::Zero    = 16384;
+    put _Floats::PosNaN  = 16256;
+
+    put _UPPER16         = 65280;
+    put _MANTISSA_SIZE   = 8;
+    put _EXPONENT_SIZE   = 8;
+    put _SIGN_OFFSET     = 15;
+    put _MANTISSA_MASK   = 127;
+    put _EXPONENT_MASK   = 255;
+    put _SIGN_MASK       = 32768;
+    put _MIN_SIGNED_CHAR = 128;
+
+    return;
+
+
 
 "(Value::Float16) => (Man::Byte)
 lab Floats::GetMantissa;
@@ -46,44 +52,15 @@ lab Floats::GetExponent;
 "the MANTISSA_SIZE is the virtual size of the mantissa
 "MANTISSA_SIZE - 1 bits are actually being stored
 
-"(Ptr::Float16*, NewMan::Byte)
-lab Floats::SetMantissa;
+
+"(Mantissa::Byte, Exponent::Byte, Sign::Bool) => (New::Float16)
+lab Floats::Render;
+    sub Stack::Swap; pull _sign;
+    sub Stack::Swap; pull _exp;
+    sub Stack::Swap; pull _man;
+
+    push (_man & _MANTISSA_MASK) | ((_exp & _EXPONENT_MASK) << (_MANTISSA_SIZE - 1)) | (_sign << _SIGN_OFFSET);
     sub Stack::Swap;
-    pull _newValue;
-    sub Stack::Swap;
-    pull _fpPtr;
-
-    "read fpValue
-    put _fpValue <- _fpPtr;
-
-    "clear mantissa
-    put _fpValue = _fpValue & (_MANTISSA_MASK ^ (0 - 1));
-
-    "set new value
-    put _fpValue = _fpValue | (_newValue & _MANTISSA_MASK);
-
-    "write back fpValue
-    put _fpValue -> _fpPtr;    
-    return;
-
-"(Ptr::Float16*, NewExp::Byte)
-lab Floats::SetExponent;
-    sub Stack::Swap;
-    pull _newValue;
-    sub Stack::Swap;
-    pull _fpPtr;
-
-    "read fpValue
-    put _fpValue <- _fpPtr;
-
-    "clear exponent
-    put _fpValue = _fpValue & ((_EXPONENT_MASK << (_MANTISSA_SIZE - 1)) ^ (0 - 1));
-
-    "set new value
-    put _fpValue = _fpValue | ((_newValue & _EXPONENT_MASK) << (_MANTISSA_SIZE - 1));
-
-    "write back fpValue
-    put _fpValue -> _fpPtr;
     return;
 
 "(Value::Int) => (Inv::Int)
@@ -105,125 +82,97 @@ lab Floats::LocalInv8;
 "(Value::Float16) => (Neg::Float16)
 "Neg::Float16 = -abs(Value::Float16)
 lab Floats::SetSign;
-    pull _temp;
+    sub Stack::Swap;
     pull _value;
     push _value | _SIGN_MASK;
-    push _temp;
+    sub Stack::Swap;
+    return;
+
+
+"(Value::Float16) => (Neg::Float16)
+"Neg::Float16 = -(Value::Float16)
+lab Floats::Neg;
+    sub Stack::Swap;
+    pull _value;
+    push _value ^ _SIGN_MASK;
+    sub Stack::Swap;
     return;
 
 
 "(Value::Float16, Offset::Int) => (Shift::Float16)
 "Shift::Float16 = Value::Float16 >> Offset::Int
 lab Floats::ShiftSmall;
-    sub Stack::Swap;
-    pull _offset;
-    sub Stack::Swap;
-    sub Stack::Dup; "keep reference to fpValue for SetExponent call
+    sub Stack::Swap; pull _offset;
+    sub Stack::Swap; pull _value;
     
-    sub Floats::GetExponent;
-    pull _exponent;
+    push _value; sub Floats::GetMantissa; pull _mantissa;
+    push _value; sub Floats::GetExponent; pull _exponent;
+    put _sign = _value >> _SIGN_OFFSET;
 
-    "switch fpValue with *fpValue, for SetExponent call
-    pull _fpValue;
-    put  _fpValue -> _tempPtr;
-    push _tempPtr;
+    push _mantissa;
     push _exponent - _offset;
-    sub Floats::SetExponent;
-    
-    put _fpValue <- _tempPtr;
-    push _fpValue;    
+    push _sign;
+    sub Floats::Render;
     sub Stack::Swap;
     return;    
 
 "(Value::Float16, Offset::Int) => (Shift::Float16)
 "Shift::Float16 = Value::Float16 << Offset::Int
 lab Floats::ShiftGreat;
-    sub Stack::Swap;
-    pull _offset;
-    sub Stack::Swap;
-    sub Stack::Dup; "keep reference to fpValue for SetExponent call
+    sub Stack::Swap; pull _offset;
+    sub Stack::Swap; pull _value;
     
-    sub Floats::GetExponent;
-    pull _exponent;
-
-    pull _fpValue;
-    put  _fpValue -> _tempPtr;
-    push _tempPtr;
-    push _exponent + _offset;
-    sub Floats::SetExponent;
-
-    put _fpValue <- _tempPtr;
-    push _fpValue;    
-    sub Stack::Swap;
-    return;
-
-"(Ptr::Float16*, Man::Byte, Exp::Byte)
-lab Floats::NormalizeAndSet;
-    sub Stack::Swap;         
-    pull _exponent;
-    sub Stack::Swap;
-    pull _mantissa;
-    sub Stack::Swap;
-    pull _fpPtr;
-    
-          
-    jump Floats::NormalizeAndSet::CheckPosNaN;
-    lab Floats::NormalizeAndSet::CheckFallBack;
-    jump Floats::NormalizeAndSet::Man0 ~ _mantissa == 0;
-    
-    lab Floats::NormalizeAndSet::NormLoop;
-        jump Floats::NormalizeAndSet::NormExit ~ (_mantissa >> (_MANTISSA_SIZE - 1)) != 0;
-        put _mantissa = _mantissa << 1;
-        put _exponent = (_exponent - 1) & 255;
-    jump Floats::NormalizeAndSet::NormLoop;
-    lab Floats::NormalizeAndSet::NormExit;
-    
-    push _fpPtr;
-    sub Stack::Dup;
+    push _value; sub Floats::GetMantissa; pull _mantissa;
+    push _value; sub Floats::GetExponent; pull _exponent;
+    put _sign = _value >> _SIGN_OFFSET;
 
     push _mantissa;
-    sub Floats::SetMantissa;
-    push _exponent;
-    sub Floats::SetExponent;
+    push _exponent + _offset;
+    push _sign;
+    sub Floats::Render;
+    sub Stack::Swap;
+    return;    
+
+"(Mantissa::Byte, Exponent::Byte, Sign::Bool) => (New::Float16)
+lab Floats::NormalizeAndRender;
+    sub Stack::Swap; pull _sign;
+    sub Stack::Swap; pull _exponent;
+    sub Stack::Swap; pull _mantissa;
     
+          
+    jump Floats::NormalizeAndRender::CheckPosNaN;
+    lab Floats::NormalizeAndRender::CheckFallBack;
+    jump Floats::NormalizeAndRender::Man0 ~ _mantissa == 0;
+    
+    lab Floats::NormalizeAndRender::NormLoop;
+        jump Floats::NormalizeAndRender::NormExit ~ (_mantissa >> (_MANTISSA_SIZE - 1)) != 0;
+        put _mantissa = _mantissa << 1;
+        put _exponent = (_exponent - 1) & 255;
+    jump Floats::NormalizeAndRender::NormLoop;
+    lab Floats::NormalizeAndRender::NormExit;
+    
+    push _mantissa;
+    push _exponent;
+    push _sign;
+    sub Floats::Render;
+    sub Stack::Swap;
     return;
 
-    lab Floats::NormalizeAndSet::Man0;
-        push _fpPtr;
-        sub Stack::Dup;
-
+    lab Floats::NormalizeAndRender::Man0;
         push 0;
-        sub Floats::SetMantissa;
         push _MIN_SIGNED_CHAR;
-        sub Floats::SetExponent;
-        
-
+        push 0;
+        sub Floats::Render;
+        sub Stack::Swap;
         return;
 
-    lab Floats::NormalizeAndSet::CheckPosNaN;
-        jump Floats::NormalizeAndSet::CheckFallBack ~ _exponent & _UPPER16 == 0;
-        jump Floats::NormalizeAndSet::CheckFallBack ~ _exponent & _UPPER16 == _UPPER16;
-        put _Floats::PosNaN -> _fpPtr;
+    lab Floats::NormalizeAndRender::CheckPosNaN;
+        jump Floats::NormalizeAndRender::CheckFallBack ~ _exponent & _UPPER16 == 0;
+        jump Floats::NormalizeAndRender::CheckFallBack ~ _exponent & _UPPER16 == _UPPER16;
+        push _Floats::PosNaN;
+        sub Stack::Swap;
         return;
 
-
-"(Value::Int) => (Value::Float16)
-lab Floats::TwoC2Fp;
-    sub Stack::Swap;
-    sub Stack::Dup; 
-   
-    pull _value;
-    put _sign = (_value >> 15) & 1;
-
-    "sub Floats::LocalInv16 ~ _sign == 1;
-    pull _output;
-    push (_output ^ (0 - _sign)) + _sign;  
-    sub Floats::Value2Fp;
-
-    pull _output;
-    push _output | (_sign << 15);
-    sub Stack::Swap;
-    return;
 
 "(Value::Int) => (Value::Float16)
 lab Floats::Value2Fp;
@@ -237,21 +186,13 @@ lab Floats::Value2Fp;
         jump Floats::Value2Fp::Exit ~ (_value >> _MANTISSA_SIZE) == 0;
         put _value    = _value >> 1;
         put _exponent = _exponent + 1;
-    jump Floats::Value2Fp::Loop;
+        jump Floats::Value2Fp::Loop;
     lab Floats::Value2Fp::Exit;
 
-    static 1 _fpPtr;
-    put 0 -> _fpPtr;
-
-    push _fpPtr;
-    sub Stack::Dup; "keep reference
     push _value;
     push _exponent;
-    sub Floats::NormalizeAndSet;
-
-    pull _fpPtr;
-    put _fpValue <- _fpPtr;  
-    push _fpValue;
+    push 0;
+    sub Floats::NormalizeAndRender;
     sub Stack::Swap;
     return;
 
@@ -296,23 +237,17 @@ lab Floats::Add;
     push _val2;
     sub Floats::GetExponent;
     pull _val2Exp;
-    
 
     push _val2Exp;
     push _val1Exp;
     sub Floats::LocalTCC8;
-    pull _Temp;
-    
+    pull __;
 
-    jump Floats::Add::SkipValComp1 ~ _Temp == 0;
-        put _valBig = _val2;
-        put _valLow = _val1;
-    lab Floats::Add::SkipValComp1;
-    jump Floats::Add::SkipValComp2 ~ _Temp == 1;
-        put _valBig = _val1;
-        put _valLow = _val2;
-    lab Floats::Add::SkipValComp2;
-
+    push _val1;
+    push _val2;
+    sub Stack::Swap ~ __ == 0;
+    pull _valBig;
+    pull _valLow;
 
     "get exponents
     push _valBig;
@@ -332,8 +267,8 @@ lab Floats::Add;
 
     push _valLow;
     sub Floats::GetMantissa;
-    pull _Temp;
-    put _valLowMantissa = _Temp >> _deltaExponent;
+    pull __;
+    put _valLowMantissa = __ >> _deltaExponent;
     
     "apply the sign
     push _valLowMantissa;
@@ -363,18 +298,10 @@ lab Floats::Add;
     lab Floats::Add::SkipCarryCorr;
 
 
-    put 0 -> _tempPtr;
-    push _tempPtr;
-    sub Stack::Dup; "keep reference
     push _outputMantissa;
     push _outputExponent;
-    sub Floats::NormalizeAndSet;
-    pull _tempPtr;
-    put _output <- _tempPtr;
-
-
-    push _output;
-    sub Floats::SetSign ~ _outputSign != 0;
+    push _outputSign;
+    sub Floats::NormalizeAndRender;
     sub Stack::Swap;
     return;
 
@@ -397,15 +324,24 @@ lab Floats::Mul;
     sub Floats::GetMantissa;
     sub Math::Mul;
 
-    push _val1;
-    sub Floats::GetExponent;
-    push _val2;
-    sub Floats::GetExponent;    
+    push _val1; sub Floats::GetExponent; pull _exp1;
+    push _val2; sub Floats::GetExponent; pull _exp2;
+
+    push _exp1; push _exp2;
     sub Math::Add;
     pull _outputExponent;
     pull _outputMantissa;
 
-    put _outputSign = (_val1 & _SIGN_MASK) ^ (_val2 & _SIGN_MASK);
+
+    "prevent exponent underflow
+    jump Floats::Mul::SkipCapExponent ~ _exp1 & 128 == 0; "exp1 not neg
+    jump Floats::Mul::SkipCapExponent ~ _exp2 & 128 == 0; "exp2 not neg
+    jump Floats::Mul::SkipCapExponent ~ _outputExponent & 128 != 0; "sum still negative
+        put _outputExponent = 128;
+    lab Floats::Mul::SkipCapExponent;
+
+
+    put _outputSign = ((_val1 & _SIGN_MASK) ^ (_val2 & _SIGN_MASK)) >> _SIGN_OFFSET;
 
     "move the outputMantissa back till it fit back into the char, in the process discarding the precision the we can't keep
     lab Floats::Mul::Loop;
@@ -415,18 +351,10 @@ lab Floats::Mul;
     jump Floats::Mul::Loop ~ _outputMantissa > (1 << _MANTISSA_SIZE) - 1;
 
 
-    put 0 -> _tempPtr;
-    push _tempPtr;
-    sub Stack::Dup;
     push _outputMantissa;
     push _outputExponent & 255;
-    sub Floats::NormalizeAndSet;
-    pull _tempPtr;
-    put _output <- _tempPtr;
-
-
-    push _output;
-    sub Floats::SetSign ~ _outputSign != 0;
+    push _outputSign;
+    sub Floats::NormalizeAndRender;
     sub Stack::Swap;
     return;
 
@@ -495,7 +423,7 @@ lab Floats::Div;
     sub Stack::Swap;
     pull _val1;
 
-    put _outputSign = (_val1 & _SIGN_MASK) ^ (_val2 & _SIGN_MASK);
+    put _outputSign = ((_val1 & _SIGN_MASK) ^ (_val2 & _SIGN_MASK)) >> _SIGN_OFFSET;
 
     push _val1;
     sub Floats::GetMantissa;
@@ -522,18 +450,10 @@ lab Floats::Div;
     jump Floats::Div::Loop;
     lab Floats::Div::Exit;
 
-    put 0 -> _tempPtr;
-    push _tempPtr;
-    sub Stack::Dup;
     push _outputMantissa;
     push _outputExponent;
-    sub Floats::NormalizeAndSet;
-    pull _tempPtr;
-    put _output <- _tempPtr;
-    
-    push _output;
-    sub Floats::SetSign ~ _outputSign != 0;
-
+    push _outputSign;
+    sub Floats::NormalizeAndRender;
     sub Stack::Swap;
     return;
     
@@ -584,7 +504,6 @@ lab Floats::SqrtApprox;
     "extract mant and exp
     push _v; sub Floats::GetExponent; pull _E;
     push _v; sub Floats::GetMantissa; pull _M;
-    push _v;
     
     "sqrt(M * 2^E) = sqrt(M) * sqrt(2^E)
     " = sqrt(M) * 2^(E/2)
@@ -608,15 +527,10 @@ lab Floats::SqrtApprox;
     "sqrt(M)
      push _M; sub Math::Sqrt; pull _M;
 
-    pull _v;
-    put _v -> _tempPtr;
-    push _tempPtr;
     push _M;
     push _E;
-    sub Floats::NormalizeAndSet;
-    
-    put _v <- _tempPtr;    
-    push _v;
+    push 0;
+    sub Floats::NormalizeAndRender;
     sub Stack::Swap;
     return;
    
@@ -732,6 +646,11 @@ lab Floats::LocalTCC8;
     
     ';
 
+    "comare sign
+    jump Floats::LocalTCC8::True  ~ (_val2 & (_val1 ^ (1 << 7))) & (1 << 7) != 0;
+    jump Floats::LocalTCC8::False ~ (_val1 & (_val2 ^ (1 << 7))) & (1 << 7) != 0;
+
+    "compare content
     jump Floats::LocalTCC8::True ~ _val1 - _val2 & (1 << 7) == 0;
     jump Floats::LocalTCC8::False;
     

@@ -1,0 +1,49 @@
+use 'libs/tests/common.baabnq';
+use 'libs/fast.baabnq';
+
+lab TestFast::Mul10;
+    
+    push 10;
+    sub Fast::Mul10;
+    pull __;
+    jump fail ~ __ != 100;
+    
+    push 0;
+    sub Fast::Mul10;
+    pull __;
+    jump fail ~ __ != 0;
+
+    push 100;
+    sub Fast::Mul10;
+    pull __;
+    jump fail ~ __ != 1000;
+    
+    
+    push 1234;
+    sub Fast::Mul10;
+    pull __;
+    jump fail ~ __ != 12340;
+    
+    jump succ;
+    
+    
+    
+lab TestFast::DivMod10;
+
+    push 1234;
+    sub Fast::DivMod10;
+    pull __; jump fail ~ __ != 123;
+    pull __; jump fail ~ __ != 4;
+     
+    push 100;
+    sub Fast::DivMod10;
+    pull __; jump fail ~ __ != 10;
+    pull __; jump fail ~ __ != 0;
+
+    push 0;
+    sub Fast::DivMod10;
+    pull __; jump fail ~ __ != 0;
+    pull __; jump fail ~ __ != 0;
+    
+    jump succ;
+    

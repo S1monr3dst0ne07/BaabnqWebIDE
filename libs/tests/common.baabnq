@@ -1,0 +1,20 @@
+
+"local swap
+lab swap;
+    pull _r;
+    pull _a;
+    pull _b;
+    push _a;
+    push _b;
+    push _r;
+    return;
+
+lab fail;
+    push 0;
+    sub swap;
+    return;    
+
+lab succ;
+    push 0 - 1;
+    sub swap;
+    return;    

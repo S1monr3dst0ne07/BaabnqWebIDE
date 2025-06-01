@@ -1,0 +1,113 @@
+jump Ouch::Syscall::Skip;
+
+"--- noop ---
+
+lab Ouch::Syscall::Noop;
+    asm 'syscall 0;';
+    return;
+
+"--- stream ---
+
+lab Ouch::Syscall::CloseStream;
+    asm 'pla; syscall 1; pha;';
+    return;
+
+lab Ouch::Syscall::ReadStream;
+    asm 'pla; syscall 2; pha;';
+    return;
+
+lab Ouch::Syscall::WriteStream;
+    asm 'pla; syscall 3; pha;';
+    return;
+
+lab Ouch::Syscall::StreamInfo;
+    asm 'pla; syscall 4; pha;';
+    return;
+
+lab Ouch::Syscall::SendStream;
+    asm 'pla; syscall 5; pha;';
+    return;
+    
+lab Ouch::Syscall::GetProcStdio;
+    asm 'pla; syscall 6; pha;';
+    return;    
+
+lab Ouch::Syscall::GetArgs;
+    asm 'pla; syscall 7; pha;';
+    return;    
+
+lab Ouch::Syscall::GetWork;
+    asm 'pla; syscall 8; pha;';
+    return;    
+
+lab Ouch::Syscall::PeekStream;
+    asm 'pla; syscall 9; pha;';
+    return;    
+
+"--- files ---
+lab Ouch::Syscall::OpenFileObj;
+    asm 'pla; syscall 16; pha;';
+    return;
+
+lab Ouch::Syscall::CreateFileObj;
+    asm 'pla; syscall 17; pha;';
+    return;
+
+lab Ouch::Syscall::DeleteFileObj;
+    asm 'pla; syscall 18; pha;';
+    return;
+
+"--- time ---
+lab Ouch::Syscall::NapMs;
+    asm 'pla; syscall 32; pha;';
+    return;
+
+lab Ouch::Syscall::FormatLocalTime;
+    asm 'pla; syscall 35; pha;';
+    return;
+
+"--- network ---
+lab Ouch::Syscall::BindSock;
+    asm 'pla; syscall 48; pha;';
+    return;
+    
+lab Ouch::Syscall::AcceptSock;
+    asm 'pla; syscall 49; pha;';
+    return;
+
+lab Ouch::Syscall::Connect;
+    asm 'pla; syscall 50; pha;';
+    return;
+
+"--- process ---
+lab Ouch::Syscall::GetPid;
+    asm 'pla; syscall 64; pha;';
+    return;
+
+lab Ouch::Syscall::LaunchProcess;
+    asm 'pla; syscall 65; pha;';
+    return;
+
+lab Ouch::Syscall::ForkProcess;
+    asm 'pla; syscall 68; pha;';
+    return;    
+
+
+"--- threads ---
+lab Ouch::Syscall::MMap;
+    asm 'pla; syscall 80; pha;';
+    return;
+
+lab Ouch::Syscall::TSL;
+    asm 'pla; syscall 81; pha;';
+    return;
+
+
+"--- meta ---
+lab Ouch::Syscall::SOS;
+    asm 'syscall 65535';
+    return;
+
+
+
+lab Ouch::Syscall::Skip;

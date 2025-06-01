@@ -1,0 +1,462 @@
+
+use 'libs/tests/common.baabnq';
+use 'libs/string.baabnq';
+use 'libs/rand.baabnq';
+use 'libs/chunk.baabnq';
+
+
+
+
+lab TestString::Int2Str;
+    
+    push 12345;
+    sub String::Int2Str;    
+    new '12345' _pReference;
+    push _pReference;
+    sub String::StrCmp;
+    pull __;
+    jump fail ~ __ != 0;
+    free _pReference;
+    
+    push 100;
+    sub String::Int2Str;
+    new '  100' _pReference;
+    push _pReference;
+    sub String::StrCmp;
+    pull __;
+    jump fail ~ __ != 0;
+    free _pReference;
+
+    push 0;
+    sub String::Int2Str;
+    new '    0' _pReference;
+    push _pReference;
+    sub String::StrCmp;
+    pull __;
+    jump fail ~ __ != 0;
+    free _pReference;
+
+    jump succ;
+
+
+
+lab TestString::Str2Int;
+    "Str2Int and Int2Str are inversely symmetric
+    
+    push (0 - 1);
+    lab Local::TestString::Str2Int::Loop;
+        sub Stack::Dup;
+        
+        sub String::Int2Str; "generate
+        sub Stack::Dup;
+        sub String::Str2Int;
+        
+        pull _t;
+        pull __; free __;        
+        pull _i;
+
+        jump fail ~ _i != _t;
+        jump Local::TestString::Str2Int::Done ~ _i == 0;
+
+        push _i >> 1;
+        jump Local::TestString::Str2Int::Loop;
+    lab Local::TestString::Str2Int::Done;
+    
+    
+    "edge case with non-numerics
+    new ' 0 0 0  2a1h e l l o3world9 _!?%()?§$&/ ' _p;
+    push _p;
+    sub String::Str2Int;
+    pull __;
+    jump fail ~ __ != 2139;
+    free _p;
+    
+    jump succ;
+    
+    
+
+
+
+lab TestString::StrLen;
+    new 'hello world!' _p;
+    push _p;
+    sub String::StrLen;
+    pull __;
+    jump fail ~ __ != 12;
+    free _p;
+    
+    put _i = 100;
+    lab Local::TestString::StrLen::Loop;
+        push _i;
+        sub Rand::Xorshift;
+        pull __;
+        put __ = (__ & 2047);
+        push __;
+        
+        new __ + 1 _p;
+        push _p;
+        push 1;
+        push __;
+        sub String::MemSet;
+        put 0 -> _p + __;
+        
+                        
+        push _p;
+        sub Stack::Dup;
+        sub String::StrLen;
+        pull _len;
+        pull _p;
+                
+
+        pull __;
+        pull _i;
+        jump fail ~ __ != _len;
+                
+        free _p;
+
+        put _i = _i - 1;
+    jump Local::TestString::StrLen::Loop ~ _i > 0;
+        
+    jump succ;
+
+
+
+
+"kinda important
+lab TestString::MemCpy;
+    
+    put _i = 10;
+    lab Local::TestString::Loop;
+        push _i;
+    
+        sub Rand::Xorshift;
+        pull _len;
+        put _len = _len & 511;
+        new _len _pOriginal;
+        
+        put _j = 0;
+        lab Local::TestString::Loop::Populate;
+            sub Rand::Xorshift;
+            pull __;
+            put __ -> _pOriginal + _j;
+            put _j = _j + 1;
+        jump Local::TestString::Loop::Populate ~ _j < _len;
+        
+        new _len _pCopy;
+        
+        push _pOriginal;
+        push _pCopy;
+        push _len;
+        sub String::MemCpy;
+        
+        push _pOriginal;
+        sub Chunk::Hash;
+        
+        push _pCopy;
+        sub Chunk::Hash;
+        
+        pull _t1;
+        pull _t2;
+        
+        pull _i;
+        
+        jump fail ~ _t1 != _t2;
+                
+        free _pOriginal;
+        free _pCopy;
+        put _i = _i - 1;    
+    jump Local::TestString::Loop ~ _i > 0;
+    
+    jump succ;
+    
+    
+    
+lab TestString::StrCpy;
+
+    new 'hello world' _pOriginal;
+    put _len <- _pOriginal - 1;
+    new _len _pCopy;
+
+
+    push _pOriginal;
+    push _pCopy;
+    sub String::StrCpy;
+    
+    lab Local::TestString::StrCpy::Loop;
+        put _a <- _pOriginal; put _pOriginal = _pOriginal + 1;
+        put _b <- _pCopy;     put _pCopy     = _pCopy     + 1;
+        
+        jump fail ~ _a != _b;
+        
+    jump Local::TestString::StrCpy::Loop ~ _a != 0;
+    
+    free _pOriginal;
+    free _pCopy;    
+    jump succ;
+    
+    
+"also kinda important
+lab TestString::MemSet;
+    
+    put _len = 127;
+    new _len _p;
+    
+    put _testI = 100;
+    lab Local::TestString::MemSet::Loop;        
+        sub Rand::Xorshift; pull _testValue;
+        sub Rand::Xorshift; pull __; 
+        
+        "test length must not be zero
+        put _testLen = (__ & _len) | 1;
+
+        push _p;
+        push _testValue;
+        push _testLen;        
+        sub String::MemSet;
+        
+        put _i = _testLen;
+        lab Local::TestString::MemSet::Verify;
+            put _i = _i - 1;
+            put __ <- _p + _i;
+            
+            jump fail ~ __ != _testValue;
+            
+        jump Local::TestString::MemSet::Verify ~ _i > 0;
+        
+        put _testI = _testI - 1;
+    jump Local::TestString::MemSet::Loop ~ _testI > 0;
+            
+    jump succ;    
+
+
+
+
+lab TestString::StrCmp;
+    
+    new 'hello world' _p1;
+    new 'hbye world' _p2;
+    
+    push _p1;
+    push _p1;
+    sub String::StrCmp;
+    pull __;
+    jump fail ~ __ != 0;
+    
+    push _p1;
+    push _p2;
+    sub String::StrCmp;
+    pull __;
+    jump fail ~ __ != 3;
+    "'e' - 'b' = 3
+
+    push _p2;
+    push _p2;
+    sub String::StrCmp;
+    pull __;
+    jump fail ~ __ != 0;
+    
+    free _p1;
+    free _p2;
+    
+    jump succ;
+
+
+lab TestString::MemCmp;
+
+    new 'foobar, hello world' _p1;
+    new 'foobar, hbye world' _p2;
+
+    put _len <- _p1 - 1;
+            
+    push _p1;
+    push _p1;
+    push _len;
+    sub String::MemCmp;
+    pull __;
+    jump fail ~ __ != 0;
+    
+    push _p1;
+    push _p2;
+    push _len;
+    sub String::MemCmp;
+    pull __;
+    jump fail ~ __ != 3;
+    "'e' - 'b' = 3
+
+    push _p2;
+    push _p2;
+    push _len;
+    sub String::MemCmp;
+    pull __;
+    jump fail ~ __ != 0;
+
+    push _p1;
+    push _p2;
+    push 5;
+    sub String::MemCmp;
+    pull __;
+    jump fail ~ __ != 0;
+    
+    free _p1;
+    free _p2;
+    
+    jump succ;
+    
+
+
+
+
+lab TestString::StrChr;
+
+    new 'jzwcpmtnoixaykrfgelvhusdqb' _p;
+    put _i = 0;
+    lab Local::TestString::StrChr;
+        put _v <- _p + _i;
+        push _p;
+        push _v;
+        sub String::StrChr;
+        pull __; jump fail ~ __ == 1;
+        put _i = _i + 1;
+    jump Local::TestString::StrChr ~ _i < 26;
+    free _p;
+
+    new 'hello world!' _p;
+    push _p;
+    push 33; "!
+    sub String::StrChr;
+    pull __; jump fail ~ __ != _p + 11;
+    free _p;
+
+    new 'qwerty \n \b \r   .,#12345{}() BC' _p;
+    push _p;
+    push 65; "A
+    sub String::StrChr;
+    pull __; jump fail ~ __ != 0;
+    free _p;
+
+    new '' _p;
+    push _p;
+    push 65; "A
+    sub String::StrChr;
+    pull __; jump fail ~ __ != 0;
+    free _p;
+        
+    jump succ;
+
+    
+lab TestString::MemChr;
+
+    new 'jzwcpmtnoixaykrfgelvhusdqb' _p;
+    put _len <- _p - 1;
+    put _i = 0;
+    lab Local::TestString::StrChr;
+        put _v <- _p + _i;
+        push _p;
+        push _v;
+        push _len;
+        sub String::MemChr;
+        pull __; jump fail ~ __ == 1;
+        put _i = _i + 1;
+    jump Local::TestString::StrChr ~ _i < 26;
+    free _p;
+
+    new 'hello world!' _p;
+    put _len <- _p - 1;
+    push _p;
+    push 33; "!
+    push _len;
+    sub String::MemChr;
+    pull __; jump fail ~ __ != _p + 11;
+    free _p;
+
+    new 'qwerty \n \b \r   .,#12345{}() BC' _p;
+    put _len <- _p - 1;
+    push _p;
+    push 65; "A
+    push _len;
+    sub String::MemChr;
+    pull __; jump fail ~ __ != 0;
+    free _p;
+
+    new 'foobarA ' _p;
+    push _p;
+    push 65; "A
+    push 5;
+    sub String::MemChr;
+    pull __; jump fail ~ __ != 0;
+    free _p;
+        
+    jump succ;
+
+    
+lab TestString::Concat;
+    
+    new 'hello ' _p1;
+    new 'world!' _p2;
+    new 'hello world!' _p;
+
+    push _p1;
+    push _p2;
+    sub String::Concat;
+    push _p;
+    sub String::StrCmp;
+    pull __;
+    jump fail ~ __ != 0;    
+    
+    free _p;
+    free _p1;
+    free _p2;
+        
+    jump succ;
+    
+    
+    
+lab TestString::Join;
+
+    new 'hello' _p0;
+    new ' ' _p1;
+    new 'world' _p2;
+    new '!' _p3;
+    new 'foo' _p4;
+    new '' _p5;
+    new 'bar' _p6;
+    
+    new 'hello world!foobar' _p;
+    
+    new 7 _pCollect;
+    put _p0 -> _pCollect + 0;
+    put _p1 -> _pCollect + 1;
+    put _p2 -> _pCollect + 2;
+    put _p3 -> _pCollect + 3;
+    put _p4 -> _pCollect + 4;
+    put _p5 -> _pCollect + 5;
+    put _p6 -> _pCollect + 6;
+
+    push _pCollect;
+    sub String::Join;
+            
+    push _p;
+    sub String::StrCmp;
+    pull __;
+    jump fail ~ __ != 0;
+    
+    free _pCollect;
+    free _p;
+    free _p0;
+    free _p1;
+    free _p2;
+    free _p3;
+    free _p4;
+    free _p5;
+    free _p6;
+
+    jump succ;    
+    
+    
+    
+    
+    
+    
+    
+    
+

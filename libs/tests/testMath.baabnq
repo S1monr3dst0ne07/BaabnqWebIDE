@@ -1,0 +1,307 @@
+use 'libs/tests/common.baabnq';
+use 'libs/math.baabnq';
+
+lab TestMath::Inc;
+    push 10; "normal
+    sub Math::Inc;
+    pull _v;
+    jump fail ~ _v != 11;
+
+    push 0 - 1; "overflow
+    sub Math::Inc;
+    pull _v;
+    jump fail ~ _v != 0;
+    
+    push 0 - 1; "stack fuckery
+    push 0;
+    sub Math::Inc;
+    pull _v;
+    pull _o;    
+
+    jump fail ~ _v != 1;
+    jump fail ~ _o != 0 - 1;
+
+    jump succ;
+
+
+lab TestMath::Dec;
+    push 10; "normal
+    sub Math::Dec;
+    pull _v;
+    jump fail ~ _v != 9;
+
+    push 0; "underflow
+    sub Math::Dec;
+    pull _v;
+    jump fail ~ _v != 0 - 1;
+    
+    push 0 - 1; "stack fuckery
+    push 1;
+    sub Math::Dec;
+    pull _v;
+    pull _o;    
+
+    jump fail ~ _v != 0;
+    jump fail ~ _o != 0 - 1;
+
+    jump succ;
+
+
+lab TestMath::Min;
+    push 3; "way 1
+    push 5;
+    sub Math::Min;
+    pull _v;
+    jump fail ~ _v != 3;
+
+    push 5; "way 2
+    push 3;
+    sub Math::Min;
+    pull _v;
+    jump fail ~ _v != 3;
+
+
+    push 0 - 1; "stack fuckery
+    push 0;
+    push 0 - 1;
+    sub Math::Min;
+    pull _v;
+    pull _o;
+    jump fail ~ _v != 0;
+    jump fail ~ _o != 0 - 1;
+
+    jump succ;
+
+lab TestMath::Max;
+    push 3; "way 1
+    push 5;
+    sub Math::Max;
+    pull _v;
+    jump fail ~ _v != 5;
+
+    push 5; "way 2
+    push 3;
+    sub Math::Max;
+    pull _v;
+    jump fail ~ _v != 5;
+
+
+    push 0 - 1; "stack fuckery
+    push 0;
+    push 0 - 1;
+    sub Math::Max;
+    pull _v;
+    pull _o;
+    jump fail ~ _v != 0 - 1;
+    jump fail ~ _o != 0 - 1;
+
+    jump succ;
+
+
+
+lab TestMath::Add;
+    push 4;
+    push 3;
+    sub Math::Add;
+    pull _v;
+    jump fail ~ _v != 7;
+
+    push 0;
+    push 0;
+    sub Math::Add;
+    pull _v;
+    jump fail ~ _v != 0;    
+
+    push 1 << 15;
+    push 1 << 15;
+    sub Math::Add;
+    pull _v;
+    jump fail ~ _v != 0;    
+
+    jump succ;
+
+lab TestMath::Sub;
+    push 4;
+    push 3;
+    sub Math::Sub;
+    pull _v;
+    jump fail ~ _v != 1;
+
+    push 0;
+    push 0;
+    sub Math::Sub;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    push 1;
+    push 2;
+    sub Math::Sub;
+    pull _v;
+    jump fail ~ _v != (1 << 16) - 1;
+
+    jump succ;
+
+
+lab TestMath::Mul;
+    push 4;
+    push 3;
+    sub Math::Mul;
+    pull _v;
+    jump fail ~ _v != 12;
+    
+    push 0;
+    push 3;
+    sub Math::Mul;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    push 4;
+    push 0;
+    sub Math::Mul;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    push (1 << 16) - 1;
+    push (1 << 16) - 1;
+    sub Math::Mul;
+    pull _v;
+    jump fail ~ _v != 1;
+    
+    jump succ;
+
+lab TestMath::Div;
+    push 12;
+    push 3;
+    sub Math::Div;
+    pull _v;
+    jump fail ~ _v != 4;
+
+    push 0;
+    push 3;
+    sub Math::Div;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    push 4;
+    push 0;
+    sub Math::Div;
+    pull _v;
+    "basically infinity, but 16-bit
+    jump fail ~ _v != 65535;
+
+    push 0;
+    push 0;
+    sub Math::Div;
+    pull _v;
+    "basically infinity, but 16-bit
+    jump fail ~ _v != 65535;
+
+    jump succ;
+
+lab TestMath::Mod;
+    "largest primes less than 1 << 16 - 1
+    push 65521;
+    push 65407;
+    sub Math::Mod;
+    pull _v;
+    jump fail ~ _v != 114;
+    
+    jump succ;
+
+
+lab TestMath::Sqrt;
+    push 0;
+    sub Math::Sqrt;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    push 49;
+    sub Math::Sqrt;
+    pull _v;
+    jump fail ~ _v != 7;
+
+    push 1;
+    sub Math::Sqrt;
+    pull _v;
+    jump fail ~ _v != 1;
+
+    push 65025;
+    sub Math::Sqrt;
+    pull _v;
+    jump fail ~ _v != 255;
+
+    push 10000;
+    sub Math::Sqrt;
+    pull _v;
+    jump fail ~ _v != 100;
+            
+    jump succ;
+
+
+lab TestMath::Pow;
+    push 10;
+    push 2;
+    sub Math::Pow;
+    pull _v;
+    jump fail ~ _v != 100;
+
+    push 10;
+    push 3;
+    sub Math::Pow;
+    pull _v;
+    jump fail ~ _v != 1000;
+
+    push 10;
+    push 4;
+    sub Math::Pow;
+    pull _v;
+    jump fail ~ _v != 10000;
+
+    push 1;
+    push 0;
+    sub Math::Pow;
+    pull _v;
+    jump fail ~ _v != 1;
+
+    push 12345;
+    push 1;
+    sub Math::Pow;
+    pull _v;
+    jump fail ~ _v != 12345;
+
+    push 3;
+    push 3;
+    sub Math::Pow;
+    pull _v;
+    jump fail ~ _v != 27;
+
+    jump succ;
+    
+
+lab TestMath::Cbrt;
+    push 0;
+    sub Math::Cbrt;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    push 27;
+    sub Math::Cbrt;
+    pull _v;
+    jump fail ~ _v != 3;
+
+    push 1;
+    sub Math::Cbrt;
+    pull _v;
+    jump fail ~ _v != 1;
+
+    push 32767;
+    sub Math::Cbrt;
+    pull _v;
+    jump fail ~ _v != 31;
+
+    push 1000;
+    sub Math::Cbrt;
+    pull _v;
+    jump fail ~ _v != 10;
+            
+    jump succ;

@@ -72,23 +72,6 @@ lab Trig::FSin;
     return;
     
     
-lab Trig::LocalAddExpo;
-    sub Stack::Swap;
-    pull _d;
-    sub Stack::Swap;
-    pull _x;
-
-    push _tempPtr;
-    push _x;
-    sub Floats::GetExponent;
-    pull __; push __ + _d;
-    put _x -> _tempPtr;
-    sub Floats::SetExponent;
-    put _x <- _tempPtr;
-    push _x;
-    
-    sub Stack::Swap;
-    return;
 
 lab Trig::Zero;
     push _Floats::Zero;
@@ -107,7 +90,7 @@ lab Trig::Sin;
     
     "add 15 to exp for fixed-point digit extraction
     push 15;
-    sub Trig::LocalAddExpo;
+    sub Floats::ShiftGreat;
     
     sub Floats::Fp2Value;
     
@@ -125,7 +108,7 @@ lab Trig::Sin;
 
     "sub 15 from exp for fixed-point digit integration
     push 0 - 15;
-    sub Trig::LocalAddExpo;
+    sub Floats::ShiftGreat;
     
     "swap restore sign and res
     "__ contains fixed-point number, where msb has place value 1

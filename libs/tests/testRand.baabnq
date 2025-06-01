@@ -1,0 +1,61 @@
+
+use 'libs/tests/common.baabnq';
+use 'libs/math.baabnq';
+use 'libs/twoc.baabnq';
+use 'libs/rand.baabnq';
+
+lab Local::TestRand::Init;
+    sub Rand::ModuleInit;
+return;
+
+lab TestRand::Const;
+    sub Local::TestRand::Init;
+
+    "check pseudo state
+    jump fail ~ _Rand::X != 1;
+    jump succ;
+
+
+lab TestRand::Xorshift;
+    sub Local::TestRand::Init;
+
+    "random numbers are compared against 4-bit distrubution
+    "base on such, randomness is computed
+
+    new 16 _pDist;
+    put _i = 0;
+
+    lab Local::TestRand::Xorshift::Loop;
+        sub Rand::Xorshift;
+        pull _Val;
+        put _pTar = _pDist + (_Val & 15);
+
+        put _Data <- _pTar;
+        put _Data + 1 -> _pTar;
+    
+        put _i = _i + 1;
+    jump Local::TestRand::Xorshift::Loop ~ _i != 1600;
+
+    "at sample rate of 1600, one can expect on average 
+    "1600 / 16 = 100 to be the average
+    
+    put _i = 0;
+    put _DeltaSum = 0;
+    lab Local::TestRand::Xorshift::Sum;
+        put _Data <- _pDist + _i;
+        put _Delta = _Data - 100;
+
+        push _Delta;
+        sub Twoc::Neg ~ _Delta > (1 << 15);
+        pull _Delta;
+
+        put _DeltaSum = _DeltaSum + _Delta;
+
+        put _i = _i + 1;
+    jump Local::TestRand::Xorshift::Sum ~ _i < 16;
+
+    put _Aver = _DeltaSum >> 4;
+    jump fail ~ _Aver > 10;
+
+
+    jump succ;

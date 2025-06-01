@@ -11,9 +11,7 @@ lab Chunk::Len;
     "pull _x;
     "put _len <- _x - 1;
     "push _len - 1;
-    
-    "sore wa osokute warui node "asm" o tsukau
-    "(romaji ni tsuite wa gomennasai)
+    "上記が遅いから「ASM」を使う
     
     asm '
     pla;
@@ -143,11 +141,11 @@ lab Chunk::QuickRadix;
     return;
 
 "(X::A*, Elem::A) => (Index::Int)
-"index :: a -> [a] -> Maybe Int
+"index :: Eq a => a -> [a] -> Maybe Int
 "index x [] = Nothing
 "index x (y:ys)
-"    | x == y = 0
-"    | otherwise = case (index x xs) of
+"    | x == y = Just 0
+"    | otherwise = case (index x ys) of
 "                    Nothing -> Nothing
 "                    Just x  -> Just (x+1)
 lab Chunk::Index;
@@ -267,7 +265,7 @@ lab Chunk::Slice;
     
     
 
-"(X::Int*, Start::Int, End::Int) => (X::Int*)
+"(X::Int*, Start::Int, End::Int)
 "range :: Int -> Int -> [Int]
 "range x x = []
 "range s e = [s] ++ range (s+1) e

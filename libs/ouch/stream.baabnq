@@ -1,0 +1,113 @@
+use 'libs/stack.baabnq';
+use 'libs/ouch/syscall.baabnq';
+use 'libs/string.baabnq';
+
+jump Ouch::Stream::Skip;
+
+"(Stream::FD, Str::String*) => (Success::Int)
+lab Ouch::Stream::Write;
+    sub Stack::Swap;
+    pull _pStr;
+    sub Stack::Swap;
+    pull _pStream;
+
+    push _pStream;
+    push _pStr;
+
+    push _pStr;
+    sub String::StrLen;
+    
+    sub Ouch::Syscall::SendStream;
+
+    sub Stack::Swap;
+    return;
+    
+    
+"(Stream::FD) => (Out::Byte*, Len::Int)
+"read all data from stream
+lab Ouch::Stream::ReadAll;
+    sub Stack::Swap;
+    pull _pStream;
+    
+    push _pStream;
+    sub Ouch::Syscall::StreamInfo;
+    pull __;
+    pull _len;
+    
+    "+1 for null termi
+    new (_len + 1) _out;
+    put 0 -> _out + _len;
+
+    put _i = 0;
+    lab Ouch::Stream::ReadStr;
+        push _pStream;
+        sub Ouch::Syscall::ReadStream;
+        pull _suc;
+        pull _c;
+                        
+        jump Ouch::Stream::Done ~ _suc == 0;
+        jump Ouch::Stream::Done ~ _suc == 2;
+
+        put _c -> _out + _i;
+        put _i = _i + 1;
+    jump Ouch::Stream::ReadStr ~ _i != _len;
+    lab Ouch::Stream::Done;
+
+    push _i;
+    sub Stack::Swap;
+    push _out;
+    sub Stack::Swap;
+    return;
+    
+    
+
+
+"(Socket::FD, Size::Int, PollIntervalMS::Int) => (Str::Byte*)
+"(nullptr on socket disconnect)
+"PollIntervalMS is the time (in Msecs) the routine waits between polls, if the socket is empty
+lab Ouch::Stream::SocketRead;
+    sub Stack::Swap;
+    pull _time;
+    sub Stack::Swap;
+    pull _len;
+    sub Stack::Swap;
+    pull _pSock;
+
+    new _len _pStr;
+    
+    put _i = 0;
+    jump Ouch::Stream::Read::Loop;
+    lab Ouch::Stream::Read::Poll;
+        "nap while polling to save cpu time
+        push _time;
+        sub Ouch::Syscall::NapMs;
+
+    lab Ouch::Stream::Read::Loop;
+        "poll loop
+        push _pSock;
+        sub Ouch::Syscall::ReadStream;
+        pull _suc;
+        pull _data;
+        jump Ouch::Stream::Read::Poll ~ _suc == 2;
+        jump Ouch::Stream::Read::Error ~ _suc == 0;
+
+        "byte recv
+        put _data -> _pStr + _i;
+        put _i = _i + 1;
+    jump Ouch::Stream::Read::Loop ~ _i < _len;
+        
+       
+    push _pStr;
+    sub Stack::Swap;
+    return;
+
+    lab Ouch::Stream::Read::Error;
+        free _pStr;
+        push 0;
+        sub Stack::Swap;
+        return;
+
+
+
+
+lab Ouch::Stream::Skip;

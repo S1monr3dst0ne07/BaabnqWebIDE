@@ -1,0 +1,102 @@
+use 'libs/tests/common.baabnq';
+use 'libs/stack.baabnq';
+
+
+lab TestStack::Swap;
+    push 5;
+    push 9;
+    sub Stack::Swap;
+    pull _v; jump fail ~ _v != 5;
+    pull _v; jump fail ~ _v != 9;
+
+    push 14;
+    push 5;
+    push 9;
+    sub Stack::Swap;
+    pull _v; jump fail ~ _v != 5;
+    pull _v; jump fail ~ _v != 9;
+    pull _v; jump fail ~ _v != 14;
+
+    push 0;
+    push 5;
+    push 9;
+    sub Stack::Swap;
+    pull _v; jump fail ~ _v != 5;
+    pull _v; jump fail ~ _v != 9;
+    pull _v; jump fail ~ _v != 0;
+
+    jump succ;
+
+
+lab TestStack::Dup;    
+    "0b1010101010101010
+    push 43690;
+    sub Stack::Dup;
+    pull _v; jump fail ~ _v != 43690;
+    pull _v; jump fail ~ _v != 43690;
+
+    push 10000;
+    push 43690;
+    sub Stack::Dup;
+    pull _v; jump fail ~ _v != 43690;
+    pull _v; jump fail ~ _v != 43690;
+    pull _v; jump fail ~ _v != 10000;
+
+    push 0;
+    push 43690;
+    sub Stack::Dup;
+    pull _v; jump fail ~ _v != 43690;
+    pull _v; jump fail ~ _v != 43690;
+    pull _v; jump fail ~ _v != 0;
+
+    push 0;
+    sub Stack::Dup;
+    pull _v; jump fail ~ _v != 0;
+    pull _v; jump fail ~ _v != 0;
+
+    jump succ;
+
+
+lab TestStack::DupSafe;    
+    "0b1010101010101010
+    push 43690;
+    sub Stack::DupSafe;
+    pull _v; jump fail ~ _v != 43690;
+    pull _v; jump fail ~ _v != 43690;
+
+    push 10000;
+    push 43690;
+    sub Stack::DupSafe;
+    pull _v; jump fail ~ _v != 43690;
+    pull _v; jump fail ~ _v != 43690;
+    pull _v; jump fail ~ _v != 10000;
+
+    push 0;
+    push 43690;
+    sub Stack::DupSafe;
+    pull _v; jump fail ~ _v != 43690;
+    pull _v; jump fail ~ _v != 43690;
+    pull _v; jump fail ~ _v != 0;
+
+    push 0;
+    sub Stack::DupSafe;
+    pull _v; jump fail ~ _v != 0;
+    pull _v; jump fail ~ _v != 0;
+
+    jump succ;
+
+
+lab TestStack::Drop;
+    push 1;
+    push 2;
+    sub Stack::Drop;
+    pull __; jump fail ~ __ != 1;
+
+    jump succ;
+
+
+
+
+
+
+

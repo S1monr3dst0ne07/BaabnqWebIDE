@@ -1,0 +1,49 @@
+name: Baabnq Tests
+
+on: push
+
+
+env:
+  REPO_NAME: libs
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4.2.2
+
+      - name: Move Repo into subdir
+        run: |
+          mkdir $REPO_NAME
+          mv * $REPO_NAME 2> /dev/null || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+
+      - name: Set up Baabnq
+        run: |
+          git clone https://github.com/baabnq/kit
+          cd kit
+          chmod +x setupLinux.sh
+          ./setupLinux.sh
+          rm libs/ -rf
+          cd ..
+          mv kit/* .
+          rmdir kit/
+
+
+      - name: Compile Tests
+        run: |
+          python3 compi.py -i $REPO_NAME/tests/testAll.baabnq
+
+      - name: Run Tests
+        run: |
+          python3 vm.py -f build.s1 -u Test -e
+
+

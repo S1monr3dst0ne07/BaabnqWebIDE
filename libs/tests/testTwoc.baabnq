@@ -1,0 +1,225 @@
+
+use 'libs/tests/common.baabnq';
+use 'libs/twoc.baabnq';
+
+
+lab TestTwoc::GetSign;
+    "zero
+    push 0;
+    sub Twoc::GetSign;
+    pull _v;
+    jump fail ~ _v != 0;
+    "positive
+    push 100;
+    sub Twoc::GetSign;
+    pull _v;
+    jump fail ~ _v != 0;
+    "negative
+    push 0 - 100;
+    sub Twoc::GetSign;
+    pull _v;
+    jump fail ~ _v == 0;
+
+    jump succ;
+
+lab TestTwoc::Neg;
+    "zero
+    push 0;
+    sub Twoc::Neg;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    "loop test
+    put _i = 0;
+    lab Local::TestTwoc::Neg::Loop;
+        push _i;
+        sub Twoc::Neg;
+        pull _v;
+        jump fail ~ _i + _v != 0;
+        put _i = _i + 1;
+    jump Local::TestTwoc::Neg::Loop ~ _i < 100;
+
+    jump succ;
+
+
+lab TestTwoc::Get;
+    "0
+    push 0;
+    sub Twoc::Get;
+    pull _val;
+    pull _sgn;
+    jump fail ~ _val != 0;
+    jump fail ~ _sgn != 0;
+    "-100
+    push 0 - 100;
+    sub Twoc::Get;
+    pull _val;
+    pull _sgn;
+    jump fail ~ _val != 100;
+    jump fail ~ _sgn == 0;
+    "100
+    push 100;
+    sub Twoc::Get;
+    pull _val;
+    pull _sgn;
+    jump fail ~ _val != 100;
+    jump fail ~ _sgn != 0;
+
+
+    jump succ;
+
+lab TestTwoc::Set;
+    "0
+    push 0;
+    push 0;
+    sub Twoc::Set;
+    pull _v;
+    jump fail ~ _v != 0;
+    "100
+    push 100;
+    push 0;
+    sub Twoc::Set;
+    pull _v;
+    jump fail ~ _v != 100;
+    "-100
+    push 100;
+    push 1;
+    sub Twoc::Set;
+    pull _v;
+    jump fail ~ _v != 0 - 100;
+
+    jump succ;
+
+lab TestTwoc::Mul;
+    "same sign
+    push 100;
+    push 100;
+    sub Twoc::Mul;
+    pull _v;
+    jump fail ~ _v != 10000;
+
+    "diff sign
+    push 100;
+    push 0 - 100;
+    sub Twoc::Mul;
+    pull _v;
+    jump fail ~ _v != 0 - 10000;
+
+    "double neg
+    push 0 - 100;
+    push 0 - 100;
+    sub Twoc::Mul;
+    pull _v;
+    jump fail ~ _v != 10000;
+
+    "zero
+    push 1000;
+    push 0;
+    sub Twoc::Mul;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    jump succ;
+
+lab TestTwoc::Div;
+    "same sign
+    push 10000;
+    push 100;
+    sub Twoc::Div;
+    pull _v;
+    jump fail ~ _v != 100;
+
+    "diff sign
+    push 10000;
+    push 0 - 100;
+    sub Twoc::Div;
+    pull _v;
+    jump fail ~ _v != 0 - 100;
+
+    "double neg
+    push 0 - 10000;
+    push 0 - 100;
+    sub Twoc::Div;
+    pull _v;
+    jump fail ~ _v != 100;
+
+    "zero
+    push 0;
+    push 100;
+    sub Twoc::Div;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    jump succ;
+
+
+lab TestTwoc::Cmp;
+    "same sign
+    push 100;
+    push 50;
+    sub Twoc::Cmp;
+    pull _v;
+    jump fail ~ _v == 0;
+    push 50;
+    push 100;
+    sub Twoc::Cmp;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    "diff sign
+    push 0 - 100;
+    push 50;
+    sub Twoc::Cmp;
+    pull _v;
+    jump fail ~ _v != 0;
+    push 50;
+    push 0 - 100;
+    sub Twoc::Cmp;
+    pull _v;
+    jump fail ~ _v == 0;
+
+    "double sign
+    push 0 - 100;
+    push 0 - 50;
+    sub Twoc::Cmp;
+    pull _v;
+    jump fail ~ _v == 0;
+    push 0 - 50;
+    push 0 - 100;
+    sub Twoc::Cmp;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    jump succ;
+
+
+lab TestTwoc::Shift;
+    "pos g shift
+    push 100;
+    push 4;
+    sub Twoc::Shift;
+    pull _v;
+    jump fail ~ _v != 1600;
+    "pos s shift
+    push 10000;
+    push 0 - 4;
+    sub Twoc::Shift;
+    pull _v;
+    jump fail ~ _v != 625;
+
+    "neg g shift
+    push 0 - 100;
+    push 4;
+    sub Twoc::Shift;
+    pull _v;
+    jump fail ~ _v != 0 - 1600;
+    "neg s shift
+    push 0 - 10000;
+    push 0 - 4;
+    sub Twoc::Shift;
+    pull _v;
+    jump fail ~ _v != 0 - 625;
+
+    jump succ;
+
+

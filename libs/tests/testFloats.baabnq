@@ -1,0 +1,654 @@
+
+use 'libs/tests/common.baabnq';
+use 'libs/float.baabnq';
+
+
+
+lab Local::TestFloats::Init;
+    sub Floats::ModuleInit;
+    static 1 _pTst;
+return;
+
+
+"check constants
+lab TestFloats::Const;
+    sub Local::TestFloats::Init;
+
+    "shared consts
+    jump fail ~ _UPPER16 != 65280;
+    jump fail ~ _Floats::PosNaN != 16256;
+    jump fail ~ _Floats::Zero != 16384;
+
+    "system consts
+    jump fail ~ _MANTISSA_SIZE != 8;
+    jump fail ~ _EXPONENT_SIZE != 8;
+    jump fail ~ _SIGN_OFFSET   != 15;
+
+    jump fail ~ _MANTISSA_MASK != 127;
+    jump fail ~ _EXPONENT_MASK != 255;
+    jump fail ~ _SIGN_MASK     != 32768;
+
+    jump fail ~ _MIN_SIGNED_CHAR != 128;
+
+    jump succ;
+
+lab TestFloats::GetMantissa;
+    sub Local::TestFloats::Init;
+    
+    "msb is implied to save space    
+    push 0;
+    sub Floats::GetMantissa;
+    pull _v;
+    jump fail ~ _v != 128;
+
+    push 127;
+    sub Floats::GetMantissa;
+    pull _v;
+    jump fail ~ _v != 128 | 127;
+    
+    jump succ;
+
+
+lab TestFloats::GetExponent;
+    sub Local::TestFloats::Init;
+    
+    "zero should be zero
+    push 0 << 7; "<< 7 for symmetry
+    sub Floats::GetExponent;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    "!zero should be !zero (>> 7)
+    push 255 << 7;
+    sub Floats::GetExponent;
+    pull _v;
+    jump fail ~ _v != 255;
+    
+    jump succ;
+
+lab TestFloats::LocalInv16;
+    sub Local::TestFloats::Init;
+
+    push 0; "zero should be zero
+    sub Floats::LocalInv16;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    push 255;
+    sub Floats::LocalInv16;
+    pull _v;
+    jump fail ~ _v != ((255 << 8) | 1);
+
+    jump succ;
+
+lab TestFloats::LocalInv8;
+    sub Local::TestFloats::Init;
+
+    push 0; "zero should be zero
+    sub Floats::LocalInv8;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    push 255;
+    sub Floats::LocalInv8;
+    pull _v;
+    jump fail ~ _v != (0 | 1);
+
+    jump succ;
+
+
+lab TestFloats::SetSign;
+    sub Local::TestFloats::Init;
+
+    push 0;
+    sub Floats::SetSign;
+    pull _v;
+    jump fail ~ _v != (1 << 15);
+
+    push ((1 << 15) - 1);
+    sub Floats::SetSign;
+    pull _v;
+    jump fail ~ _v != (1 << 15) | ((1 << 15) - 1);
+
+    jump succ;
+
+
+lab TestFloats::Neg;
+    sub Local::TestFloats::Init;
+
+    push 1;
+    sub Floats::Neg;
+    pull _v;
+    jump fail ~ _v != _SIGN_MASK | 1;
+
+    push 0;
+    sub Floats::Neg;
+    pull _v;
+    jump fail ~ _v != _SIGN_MASK;
+
+    push _SIGN_MASK | 1;
+    sub Floats::Neg;
+    pull _v;
+    jump fail ~ _v != 1;
+
+    push _SIGN_MASK;
+    sub Floats::Neg;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    jump succ;
+
+
+
+lab TestFloats::ShiftSmall;
+    sub Local::TestFloats::Init;
+
+    "test zero-shift
+    push 378;  "some random value, in this case (float16)1000
+    push 0;
+    sub Floats::ShiftSmall;
+    pull _v;
+    jump fail ~ _v != 378;
+
+    "test n-shift for zero
+    push 16384;
+    push 10;
+    sub Floats::ShiftSmall;
+    sub Floats::Fp2Value;
+    pull _v;
+    jump fail ~ _v != 0; "isomorphic
+
+    "64 >> 2 = 16
+    push 64;
+    sub Floats::Value2Fp;
+    push 2;
+    sub Floats::ShiftSmall;
+    sub Floats::Fp2Value;
+    pull _v;
+    jump fail ~ _v != 16;
+
+    jump succ;
+
+lab TestFloats::ShiftGreat;
+    sub Local::TestFloats::Init;
+
+    "test zero-shift
+    push 378;  "some random value, in this case (float16)1000
+    push 0;
+    sub Floats::ShiftGreat;
+    pull _v;
+    jump fail ~ _v != 378;
+
+    "test n-shift for zero
+    push 16384;
+    push 10;
+    sub Floats::ShiftGreat;
+    sub Floats::Fp2Value;
+    pull _v;
+    jump fail ~ _v != 0; "isomorphic
+
+    "64 << 2 = 256
+    push 64;
+    sub Floats::Value2Fp;
+    push 2;
+    sub Floats::ShiftGreat;
+    sub Floats::Fp2Value;
+    pull _v;
+    jump fail ~ _v != 256;
+
+    jump succ;
+
+
+lab TestFloats::NormalizeAndRender;
+    sub Local::TestFloats::Init;
+
+    "normal (ize, hahahah)
+    "1 << 0 = 1 (prolly)
+    push 1; 
+    push 0;
+    push 0;
+    sub Floats::NormalizeAndRender;
+    pull _v;
+    jump fail ~ _v != 31872;
+
+    "unchangable
+    "255 << 1 = 510 (prolly)
+    push 255; 
+    push 1;
+    push 0;
+    sub Floats::NormalizeAndRender;
+    pull _v;
+    jump fail ~ _v != 255;
+
+    "man0
+    "0 << 0 = 0 (prolly)
+    push 0;
+    push 0;
+    push 0;
+    sub Floats::NormalizeAndRender;
+    pull _v;
+    jump fail ~ _v != 16384;
+
+    "nan/inf
+    "sil << sil =~ infinity (prolly)
+    "signed int limit (sil)
+    push (1 << 15) - 1;
+    push (1 << 15) - 1;
+    push 0;
+    sub Floats::NormalizeAndRender;
+    pull _v;
+    jump fail ~ _v != 16256;
+
+
+    jump succ;
+
+
+
+lab TestFloats::Value2Fp;
+    sub Local::TestFloats::Init;
+
+    "zero for sanity
+    push 0;
+    sub Floats::Value2Fp;
+    pull _v;
+    jump fail ~ _v != 16384;
+
+    "max int for rounding (65535 ~> 65280, deltaR = 255, bad ik)
+    push 0 - 1;
+    sub Floats::Value2Fp;
+    pull _v;
+    jump fail ~ _v != 1151;
+
+    "shift limit (notice how 1 turns into 31872, BIG normalize)
+    push 1;
+    sub Floats::Value2Fp;
+    pull _v;
+    jump fail ~ _v != 31872;
+    
+
+
+    jump succ;
+    
+
+lab TestFloats::Fp2Value;
+    sub Local::TestFloats::Init;
+
+    "zero
+    push 16384;
+    sub Floats::Fp2Value;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    "pos exponent (65535 rounded => exp = 8)
+    push 1151;
+    sub Floats::Fp2Value;
+    pull _v;
+    jump fail ~ _v != 65280;
+
+    "neg exponent (1 => exp = -7)
+    push 31872;
+    sub Floats::Fp2Value;
+    pull _v;
+    jump fail ~ _v != 1;
+
+    jump succ;
+
+
+
+lab TestFloats::Add;
+    sub Local::TestFloats::Init;
+
+    "A (1000 + 100 = 1100 ~> 1096)
+    push 378;   "1000
+    push 32712; "100
+    sub Floats::Add;
+    pull _v;
+    jump fail ~ _v != 393; "1096
+    
+    push 32712; "100
+    push 31872; "1
+    sub Floats::Add;
+    pull _v;
+    jump fail ~ _v != 32714; "101
+    
+
+    "B (100 + 1000 = 1100 ~> 1096)
+    push 32712; "100
+    push 378;   "1000
+    sub Floats::Add;
+    pull _v;
+    jump fail ~ _v != 393; "1096
+
+    "trust me, there's a difference
+
+    "same exponent (1000 + 1010 = 2010 ~> 2008)
+    push 378;   "1000 (man: 250, exp: 2)
+    push 380;   "1010 (man: 252, exp: 2)
+    sub Floats::Add;
+    pull _v;
+    jump fail ~ _v != 507;
+
+    "sign stuff
+    push 31872;              " 1
+    push 31872 | _SIGN_MASK; "-1
+    sub Floats::Add;
+    pull _v;
+    jump fail ~ _v != 16384; "1-1 = 0 
+
+    "double sign
+    push 31872 | _SIGN_MASK; "-1
+    push 31872 | _SIGN_MASK; "-1
+    sub Floats::Add;
+    pull _v;
+    jump fail ~ _v != 32000 | _SIGN_MASK; "-1-1 = -2 
+    
+    jump succ;
+
+
+
+lab TestFloats::Mul;
+    sub Local::TestFloats::Init;
+
+    "(1000 * 100 = 100 000 ~> 99840)
+    push 378;   "1000
+    push 32712; "100
+    sub Floats::Mul;
+    pull _v;
+    jump fail ~ _v != 1219; "99840
+
+
+
+    "sign stuff
+    push 31872;              " 1
+    push 31872 | _SIGN_MASK; "-1
+    sub Floats::Mul;
+    pull _v;
+    jump fail ~ _v != 31872 | _SIGN_MASK; "1 * -1 = -1
+
+    "double sign
+    push 31872 | _SIGN_MASK; "-1
+    push 31872 | _SIGN_MASK; "-1
+    sub Floats::Mul;
+    pull _v;
+    jump fail ~ _v != 31872; "-1 * -1 = 1
+    
+    "zero
+    push 16384;
+    push 378;
+    sub Floats::Mul;
+    pull _v;
+    jump fail ~ _v != 16384;
+
+    "double zero
+    push 16384;
+    push 16384;
+    sub Floats::Mul;
+    pull _v;
+    jump fail ~ _v != 16384;
+
+    jump succ;
+
+
+
+lab TestFloats::Comp;
+    sub Local::TestFloats::Init;
+
+    "sign
+    "(100 > -100 => True)
+    push 32712;
+    push 32712 | _SIGN_MASK;
+    sub Floats::Comp;
+    pull _v;
+    jump fail ~ _v == 0;
+    "(-100 > 100 => False)
+    push 32712 | _SIGN_MASK;
+    push 32712;
+    sub Floats::Comp;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    "exponent
+    "(1000 > 100 => True)
+    push 378;
+    push 32712;
+    sub Floats::Comp;
+    pull _v;
+    jump fail ~ _v == 0;
+    "(100 > 1000 => False)
+    push 32712;
+    push 378;
+    sub Floats::Comp;
+    pull _v;
+    jump fail ~ _v != 0;
+    
+    "mantissa
+    "(101 > 100 => True)
+    push 32714;
+    push 32712;
+    sub Floats::Comp;
+    pull _v;
+    jump fail ~ _v == 0;
+    "(100 > 101 => False)
+    push 32712;
+    push 32714;
+    sub Floats::Comp;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    "same
+    "(100 > 100 => False)
+    push 32712;
+    push 32712;
+    sub Floats::Comp;
+    pull _v;
+    jump fail ~ _v != 0;
+
+    jump succ;
+
+
+
+
+
+lab TestFloats::Div;
+    sub Local::TestFloats::Init;
+
+    "(1000 * 100 = 10)
+    push 378;   "1000
+    push 32712; "100
+    sub Floats::Div;
+    pull _v;
+    jump fail ~ _v != 32288;
+
+
+
+    "sign stuff
+    push 31872;              " 1
+    push 31872 | _SIGN_MASK; "-1
+    sub Floats::Div;
+    pull _v;
+    jump fail ~ _v != 31872 | _SIGN_MASK; "1 / -1 = -1
+
+    "double sign
+    push 31872 | _SIGN_MASK; "-1
+    push 31872 | _SIGN_MASK; "-1
+    sub Floats::Div;
+    pull _v;
+    jump fail ~ _v != 31872; "-1 / -1 = 1
+    
+    "div by zero
+    push 378;
+    push 16384;
+    sub Floats::Div;
+    sub Floats::GetExponent;
+    pull _v;
+    jump fail ~ _v > 240; "exponent should be damn big, cuz infinity and shit
+
+
+    jump succ;
+
+
+lab TestFloats::Sqrt;
+    sub Local::TestFloats::Init;
+    
+    put _v = _Floats::Zero;
+    put _i = 100;
+    lab Local::TestFloats::Loop;
+        push _i - 1;
+        push _v;
+        
+        push _v;
+        push _v;
+        push _v;
+        sub Floats::Mul;
+        sub Floats::Sqrt;
+        sub Floats::SetSign;
+        sub Floats::Add;
+
+        push 31436; "~0.1
+        sub Floats::Cmp;
+        pull __;
+        
+        pull _v;
+        pull _i;
+        jump fail ~ __ != 0;
+        
+        
+        push _v;
+        push 31436; "~0.1
+        sub Floats::Add;
+        pull _v;
+        
+    jump Local::TestFloats::Loop ~ _i > 0;
+        
+    jump succ;
+        
+        
+
+lab TestFloats::Ln;
+    sub Local::TestFloats::Init;
+    
+    push 31872; "=1.0
+    sub Floats::Ln;
+    
+    push 31011; "~0.01
+    sub Floats::Cmp;
+    pull __;
+    jump fail ~ __ != 0;
+    
+    push 32045; "~e
+    sub Floats::Ln;
+    push 64640; "=-1.0
+    sub Floats::Add;
+    pull __; push __ & (_SIGN_MASK ^ (0 - 1)); "absolute
+
+    push 31564; "~0.02
+    sub Floats::Cmp;
+    pull __;
+    jump fail ~ __ != 0;
+
+    jump succ;
+
+
+
+lab TestFloats::Log2Approx;
+    sub Local::TestFloats::Init;
+
+    push 31872; "=1.0
+    sub Floats::Log2Approx;
+    pull __;
+    jump fail ~ __ != 0;
+        
+    push 32000; "=2.0
+    sub Floats::Log2Approx;
+    pull __;
+    jump fail ~ __ != 1;
+
+    push 1152; "=65536.0
+    sub Floats::Log2Approx;
+    pull __;
+    jump fail ~ __ != 16;
+    
+    push 11977; "=1990607583170891482037791752192.0
+    sub Floats::Log2Approx;
+    pull __;
+    jump fail ~ __ != 100;
+    
+    push 15488; "=<inf>
+    sub Floats::Log2Approx;
+    pull __;
+    jump fail ~ __ != 128;
+
+    jump succ;
+
+
+
+lab TestFloats::LocalTCC8;
+    sub Local::TestFloats::Init;
+    
+    "pos, pos
+    push 10;
+    push 5;
+    sub Floats::LocalTCC8;
+    pull __;
+    jump fail ~ __ != 1;
+
+    push 5;
+    push 10;
+    sub Floats::LocalTCC8;
+    pull __;
+    jump fail ~ __ != 0;
+    
+    "neg, pos
+    push (10 ^ (0 - 1)) - 1;
+    push 5;
+    sub Floats::LocalTCC8;
+    pull __;
+    jump fail ~ __ != 0;
+
+    push (5 ^ (0 - 1)) - 1;
+    push 10;
+    sub Floats::LocalTCC8;
+    pull __;
+    jump fail ~ __ != 0;
+
+    "pos, neg
+    push 10;
+    push (5 ^ (0 - 1)) - 1;
+    sub Floats::LocalTCC8;
+    pull __;
+    jump fail ~ __ != 1;
+
+    push 5;
+    push (10 ^ (0 - 1)) - 1;
+    sub Floats::LocalTCC8;
+    pull __;
+    jump fail ~ __ != 1;
+
+    "neg, neg 
+    push (10 ^ (0 - 1)) - 1;
+    push (05 ^ (0 - 1)) - 1;
+    sub Floats::LocalTCC8;
+    pull __;
+    jump fail ~ __ != 0;
+
+    push (05 ^ (0 - 1)) - 1;
+    push (10 ^ (0 - 1)) - 1;
+    sub Floats::LocalTCC8;
+    pull __;
+    jump fail ~ __ != 1;
+
+    "subnormal, pos
+    push 128;
+    push 10;
+    sub Floats::LocalTCC8;
+    pull __;
+    jump fail ~ __ != 0;
+
+    push 10;
+    push 128;
+    sub Floats::LocalTCC8;
+    pull __;
+    jump fail ~ __ != 1;
+    
+    jump succ;
+

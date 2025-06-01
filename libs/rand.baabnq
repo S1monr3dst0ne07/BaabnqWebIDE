@@ -2,7 +2,7 @@ use 'libs/stack.baabnq';
 use 'libs/chunk.baabnq';
 
 "init systemvars
-sub Rand::Init;
+sub Rand::ModuleInit;
 
 jump Rand::Skip;
 
@@ -10,7 +10,7 @@ jump Rand::Skip;
 
 
 "initializes internal state of prngs
-lab Rand::Init;
+lab Rand::ModuleInit;
     "generic state
     put _Rand::X = 1;
     
@@ -44,7 +44,7 @@ lab Rand::Init;
 lab Rand::Rand;
 lab Rand::Xorshift;
 
-    sub Rand::Init ~ _Rand::X == 0;
+    sub Rand::ModuleInit ~ _Rand::X == 0;
 
     put _Rand::X = _Rand::X ^ (_Rand::X << 7);
     put _Rand::X = _Rand::X ^ (_Rand::X >> 9);

@@ -35,4 +35,9 @@ lab Stack::Dup;
     ret;
     ';
 
+lab Stack::Drop;
+    sub Stack::Swap;
+    pull __;
+    return;
+
 lab Stack::Skip;

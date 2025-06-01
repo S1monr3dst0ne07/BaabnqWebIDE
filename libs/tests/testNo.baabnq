@@ -1,0 +1,13 @@
+use 'libs/tests/common.baabnq';
+use 'libs/no.baabnq';
+
+
+"No::Panic can't be tested, for obvious reasons
+
+lab TestNo::Return;
+    sub Local::TestNo::Return::Routine;
+    jump succ;
+
+    lab Local::TestNo::Return::Routine;
+        sub No::Return;
+        jump fail;
